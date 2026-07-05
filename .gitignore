@@ -1,7 +1,21 @@
-node_modules/
+# Переменные окружения
 .env
-database/barber.db
-database/barber.db-wal
-database/barber.db-shm
+.env.local
+.env.*.local
+
+# Зависимости
+node_modules/
+
+# База данных
+database/*.db
+database/*.db-wal
+database/*.db-shm
+
+# Логи
 *.log
-analytics.json
+
+# Сертификаты
+certs/
+
+# Временные файлы
+test-*.js

@@ -8,7 +8,15 @@
     "seed": "node data/seed.js",
     "reset": "node data/reset.js"
   },
-  "keywords": ["max", "bot", "barber", "booking"],
+  "keywords": [
+    "max",
+    "bot",
+    "barber",
+    "booking"
+  ],
   "author": "Max-Dialog",
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "win-ca": "^3.5.1"
+  }
 }
