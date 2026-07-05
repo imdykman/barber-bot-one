@@ -1,13 +1,13 @@
 function getUserId(ctx) {
-  // Äëÿ callback
+  // Ğ”Ğ»Ñ callback
   if (ctx.callback?.sender?.user_id) {
     return ctx.callback.sender.user_id;
   }
-  // Äëÿ ñîîáùåíèé
+  // Ğ”Ğ»Ñ ÑĞ¾Ğ¾Ğ±Ñ‰ĞµĞ½Ğ¸Ğ¹
   if (ctx.message?.sender?.user_id) {
     return ctx.message.sender.user_id;
   }
-  // Äëÿ bot_started
+  // Ğ”Ğ»Ñ bot_started
   if (ctx.user?.user_id) {
     return ctx.user.user_id;
   }

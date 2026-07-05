@@ -1,8 +1,8 @@
 const db = require('../database/database');
 
-console.log('?? Заполняем базу данных "Ножницы&Ко"...');
+console.log('?? Р—Р°РїРѕР»РЅСЏРµРј Р±Р°Р·Сѓ РґР°РЅРЅС‹С… "РќРѕР¶РЅРёС†С‹&РљРѕ"...');
 
-// Очищаем БД
+// РћС‡РёС‰Р°РµРј Р‘Р”
 db.db.exec(`
   DELETE FROM holidays;
   DELETE FROM bookings;
@@ -15,27 +15,27 @@ db.db.exec(`
   DELETE FROM admins;
 `);
 
-console.log('??? База очищена');
+console.log('??? Р‘Р°Р·Р° РѕС‡РёС‰РµРЅР°');
 
-// ========== ФИЛИАЛЫ ==========
+// ========== Р¤РР›РРђР›Р« ==========
 const branches = [
   {
-    name: 'Центральный филиал',
-    address: 'г. Екатеринбург, ул. Ленина, д. 144',
+    name: 'Р¦РµРЅС‚СЂР°Р»СЊРЅС‹Р№ С„РёР»РёР°Р»',
+    address: 'Рі. Р•РєР°С‚РµСЂРёРЅР±СѓСЂРі, СѓР». Р›РµРЅРёРЅР°, Рґ. 144',
     phone: '+7 (343) 100-10-10',
-    work_hours: 'Пн-Вс: 9:00 - 21:00'
+    work_hours: 'РџРЅ-Р’СЃ: 9:00 - 21:00'
   },
   {
-    name: 'Северный филиал (Уралмаш / Эльмаш)',
-    address: 'г. Екатеринбург, пр. Космонавтов, д. 252',
+    name: 'РЎРµРІРµСЂРЅС‹Р№ С„РёР»РёР°Р» (РЈСЂР°Р»РјР°С€ / Р­Р»СЊРјР°С€)',
+    address: 'Рі. Р•РєР°С‚РµСЂРёРЅР±СѓСЂРі, РїСЂ. РљРѕСЃРјРѕРЅР°РІС‚РѕРІ, Рґ. 252',
     phone: '+7 (343) 200-20-20',
-    work_hours: 'Пн-Вс: 9:00 - 21:00'
+    work_hours: 'РџРЅ-Р’СЃ: 9:00 - 21:00'
   },
   {
-    name: 'Южный филиал (Ботаника / Чкаловский)',
-    address: 'г. Екатеринбург, ул. 8 Марта, д. 308',
+    name: 'Р®Р¶РЅС‹Р№ С„РёР»РёР°Р» (Р‘РѕС‚Р°РЅРёРєР° / Р§РєР°Р»РѕРІСЃРєРёР№)',
+    address: 'Рі. Р•РєР°С‚РµСЂРёРЅР±СѓСЂРі, СѓР». 8 РњР°СЂС‚Р°, Рґ. 308',
     phone: '+7 (343) 300-30-30',
-    work_hours: 'Пн-Вс: 9:00 - 21:00'
+    work_hours: 'РџРЅ-Р’СЃ: 9:00 - 21:00'
   }
 ];
 
@@ -48,32 +48,32 @@ const branchIds = {};
 for (const branch of branches) {
   const result = insertBranch.run(branch.name, branch.address, branch.phone, branch.work_hours);
   branchIds[branch.name] = result.lastInsertRowid;
-  console.log(`? Филиал: ${branch.name}`);
+  console.log(`? Р¤РёР»РёР°Р»: ${branch.name}`);
 }
 
-// ========== УСЛУГИ ==========
+// ========== РЈРЎР›РЈР“Р ==========
 const services = [
-  // Стрижки
-  { name: 'Женская стрижка', category: 'Стрижки', price_min: 1500, price_max: 2500, duration_minutes: 60, description: 'Стрижка любой сложности с укладкой' },
-  { name: 'Мужская стрижка', category: 'Стрижки', price_min: 800, price_max: 1200, duration_minutes: 45, description: 'Классическая или модельная стрижка' },
-  { name: 'Детская стрижка', category: 'Стрижки', price_min: 600, price_max: 900, duration_minutes: 30, description: 'Для детей до 12 лет' },
+  // РЎС‚СЂРёР¶РєРё
+  { name: 'Р–РµРЅСЃРєР°СЏ СЃС‚СЂРёР¶РєР°', category: 'РЎС‚СЂРёР¶РєРё', price_min: 1500, price_max: 2500, duration_minutes: 60, description: 'РЎС‚СЂРёР¶РєР° Р»СЋР±РѕР№ СЃР»РѕР¶РЅРѕСЃС‚Рё СЃ СѓРєР»Р°РґРєРѕР№' },
+  { name: 'РњСѓР¶СЃРєР°СЏ СЃС‚СЂРёР¶РєР°', category: 'РЎС‚СЂРёР¶РєРё', price_min: 800, price_max: 1200, duration_minutes: 45, description: 'РљР»Р°СЃСЃРёС‡РµСЃРєР°СЏ РёР»Рё РјРѕРґРµР»СЊРЅР°СЏ СЃС‚СЂРёР¶РєР°' },
+  { name: 'Р”РµС‚СЃРєР°СЏ СЃС‚СЂРёР¶РєР°', category: 'РЎС‚СЂРёР¶РєРё', price_min: 600, price_max: 900, duration_minutes: 30, description: 'Р”Р»СЏ РґРµС‚РµР№ РґРѕ 12 Р»РµС‚' },
   
-  // Окрашивание
-  { name: 'Окрашивание в один тон', category: 'Окрашивание', price_min: 3000, price_max: 4500, duration_minutes: 120, description: 'Однотонное окрашивание' },
-  { name: 'Сложное окрашивание', category: 'Окрашивание', price_min: 5000, price_max: 8000, duration_minutes: 180, description: 'Airtouch, балаяж, шатуш' },
-  { name: 'Мелирование', category: 'Окрашивание', price_min: 3500, price_max: 6000, duration_minutes: 150, description: 'Классическое или современное мелирование' },
+  // РћРєСЂР°С€РёРІР°РЅРёРµ
+  { name: 'РћРєСЂР°С€РёРІР°РЅРёРµ РІ РѕРґРёРЅ С‚РѕРЅ', category: 'РћРєСЂР°С€РёРІР°РЅРёРµ', price_min: 3000, price_max: 4500, duration_minutes: 120, description: 'РћРґРЅРѕС‚РѕРЅРЅРѕРµ РѕРєСЂР°С€РёРІР°РЅРёРµ' },
+  { name: 'РЎР»РѕР¶РЅРѕРµ РѕРєСЂР°С€РёРІР°РЅРёРµ', category: 'РћРєСЂР°С€РёРІР°РЅРёРµ', price_min: 5000, price_max: 8000, duration_minutes: 180, description: 'Airtouch, Р±Р°Р»Р°СЏР¶, С€Р°С‚СѓС€' },
+  { name: 'РњРµР»РёСЂРѕРІР°РЅРёРµ', category: 'РћРєСЂР°С€РёРІР°РЅРёРµ', price_min: 3500, price_max: 6000, duration_minutes: 150, description: 'РљР»Р°СЃСЃРёС‡РµСЃРєРѕРµ РёР»Рё СЃРѕРІСЂРµРјРµРЅРЅРѕРµ РјРµР»РёСЂРѕРІР°РЅРёРµ' },
   
-  // Укладки
-  { name: 'Укладка', category: 'Укладки', price_min: 1000, price_max: 2000, duration_minutes: 45, description: 'Повседневная или вечерняя укладка' },
-  { name: 'Свадебная причёска', category: 'Укладки', price_min: 3000, price_max: 5000, duration_minutes: 90, description: 'Причёска для особого случая' },
+  // РЈРєР»Р°РґРєРё
+  { name: 'РЈРєР»Р°РґРєР°', category: 'РЈРєР»Р°РґРєРё', price_min: 1000, price_max: 2000, duration_minutes: 45, description: 'РџРѕРІСЃРµРґРЅРµРІРЅР°СЏ РёР»Рё РІРµС‡РµСЂРЅСЏСЏ СѓРєР»Р°РґРєР°' },
+  { name: 'РЎРІР°РґРµР±РЅР°СЏ РїСЂРёС‡С‘СЃРєР°', category: 'РЈРєР»Р°РґРєРё', price_min: 3000, price_max: 5000, duration_minutes: 90, description: 'РџСЂРёС‡С‘СЃРєР° РґР»СЏ РѕСЃРѕР±РѕРіРѕ СЃР»СѓС‡Р°СЏ' },
   
-  // Уход
-  { name: 'Уход за волосами', category: 'Уход', price_min: 1500, price_max: 3000, duration_minutes: 60, description: 'Маски, восстановление, ботокс' },
-  { name: 'Кератиновое выпрямление', category: 'Уход', price_min: 4000, price_max: 7000, duration_minutes: 150, description: 'Выпрямление и восстановление' },
+  // РЈС…РѕРґ
+  { name: 'РЈС…РѕРґ Р·Р° РІРѕР»РѕСЃР°РјРё', category: 'РЈС…РѕРґ', price_min: 1500, price_max: 3000, duration_minutes: 60, description: 'РњР°СЃРєРё, РІРѕСЃСЃС‚Р°РЅРѕРІР»РµРЅРёРµ, Р±РѕС‚РѕРєСЃ' },
+  { name: 'РљРµСЂР°С‚РёРЅРѕРІРѕРµ РІС‹РїСЂСЏРјР»РµРЅРёРµ', category: 'РЈС…РѕРґ', price_min: 4000, price_max: 7000, duration_minutes: 150, description: 'Р’С‹РїСЂСЏРјР»РµРЅРёРµ Рё РІРѕСЃСЃС‚Р°РЅРѕРІР»РµРЅРёРµ' },
   
-  // Барбершоп
-  { name: 'Стрижка бороды', category: 'Барбершоп', price_min: 500, price_max: 800, duration_minutes: 30, description: 'Моделирование и оформление бороды' },
-  { name: 'Королевское бритьё', category: 'Барбершоп', price_min: 1000, price_max: 1500, duration_minutes: 45, description: 'Бритьё опасной бритвой' }
+  // Р‘Р°СЂР±РµСЂС€РѕРї
+  { name: 'РЎС‚СЂРёР¶РєР° Р±РѕСЂРѕРґС‹', category: 'Р‘Р°СЂР±РµСЂС€РѕРї', price_min: 500, price_max: 800, duration_minutes: 30, description: 'РњРѕРґРµР»РёСЂРѕРІР°РЅРёРµ Рё РѕС„РѕСЂРјР»РµРЅРёРµ Р±РѕСЂРѕРґС‹' },
+  { name: 'РљРѕСЂРѕР»РµРІСЃРєРѕРµ Р±СЂРёС‚СЊС‘', category: 'Р‘Р°СЂР±РµСЂС€РѕРї', price_min: 1000, price_max: 1500, duration_minutes: 45, description: 'Р‘СЂРёС‚СЊС‘ РѕРїР°СЃРЅРѕР№ Р±СЂРёС‚РІРѕР№' }
 ];
 
 const insertService = db.db.prepare(`
@@ -88,24 +88,24 @@ for (const service of services) {
     service.duration_minutes, service.description
   );
   serviceIds[service.name] = result.lastInsertRowid;
-  console.log(`? Услуга: ${service.name}`);
+  console.log(`? РЈСЃР»СѓРіР°: ${service.name}`);
 }
 
-// ========== МАСТЕРА ==========
+// ========== РњРђРЎРўР•Р Рђ ==========
 const masters = [
-  // Центральный филиал
-  { branch: 'Центральный филиал', name: 'Анна Соколова', specialty: 'Стилист-универсал', experience: 7, description: 'Специализация: женские стрижки, окрашивание' },
-  { branch: 'Центральный филиал', name: 'Дмитрий Волков', specialty: 'Барбер', experience: 5, description: 'Мужские стрижки, оформление бороды' },
-  { branch: 'Центральный филиал', name: 'Елена Морозова', specialty: 'Колорист', experience: 10, description: 'Сложные окрашивания, мелирование' },
+  // Р¦РµРЅС‚СЂР°Р»СЊРЅС‹Р№ С„РёР»РёР°Р»
+  { branch: 'Р¦РµРЅС‚СЂР°Р»СЊРЅС‹Р№ С„РёР»РёР°Р»', name: 'РђРЅРЅР° РЎРѕРєРѕР»РѕРІР°', specialty: 'РЎС‚РёР»РёСЃС‚-СѓРЅРёРІРµСЂСЃР°Р»', experience: 7, description: 'РЎРїРµС†РёР°Р»РёР·Р°С†РёСЏ: Р¶РµРЅСЃРєРёРµ СЃС‚СЂРёР¶РєРё, РѕРєСЂР°С€РёРІР°РЅРёРµ' },
+  { branch: 'Р¦РµРЅС‚СЂР°Р»СЊРЅС‹Р№ С„РёР»РёР°Р»', name: 'Р”РјРёС‚СЂРёР№ Р’РѕР»РєРѕРІ', specialty: 'Р‘Р°СЂР±РµСЂ', experience: 5, description: 'РњСѓР¶СЃРєРёРµ СЃС‚СЂРёР¶РєРё, РѕС„РѕСЂРјР»РµРЅРёРµ Р±РѕСЂРѕРґС‹' },
+  { branch: 'Р¦РµРЅС‚СЂР°Р»СЊРЅС‹Р№ С„РёР»РёР°Р»', name: 'Р•Р»РµРЅР° РњРѕСЂРѕР·РѕРІР°', specialty: 'РљРѕР»РѕСЂРёСЃС‚', experience: 10, description: 'РЎР»РѕР¶РЅС‹Рµ РѕРєСЂР°С€РёРІР°РЅРёСЏ, РјРµР»РёСЂРѕРІР°РЅРёРµ' },
   
-  // Северный филиал
-  { branch: 'Северный филиал (Уралмаш / Эльмаш)', name: 'Мария Кузнецова', specialty: 'Стилист', experience: 6, description: 'Женские стрижки, укладки' },
-  { branch: 'Северный филиал (Уралмаш / Эльмаш)', name: 'Алексей Орлов', specialty: 'Барбер', experience: 4, description: 'Мужские стрижки, бритьё' },
+  // РЎРµРІРµСЂРЅС‹Р№ С„РёР»РёР°Р»
+  { branch: 'РЎРµРІРµСЂРЅС‹Р№ С„РёР»РёР°Р» (РЈСЂР°Р»РјР°С€ / Р­Р»СЊРјР°С€)', name: 'РњР°СЂРёСЏ РљСѓР·РЅРµС†РѕРІР°', specialty: 'РЎС‚РёР»РёСЃС‚', experience: 6, description: 'Р–РµРЅСЃРєРёРµ СЃС‚СЂРёР¶РєРё, СѓРєР»Р°РґРєРё' },
+  { branch: 'РЎРµРІРµСЂРЅС‹Р№ С„РёР»РёР°Р» (РЈСЂР°Р»РјР°С€ / Р­Р»СЊРјР°С€)', name: 'РђР»РµРєСЃРµР№ РћСЂР»РѕРІ', specialty: 'Р‘Р°СЂР±РµСЂ', experience: 4, description: 'РњСѓР¶СЃРєРёРµ СЃС‚СЂРёР¶РєРё, Р±СЂРёС‚СЊС‘' },
   
-  // Южный филиал
-  { branch: 'Южный филиал (Ботаника / Чкаловский)', name: 'Ольга Новикова', specialty: 'Стилист-колорист', experience: 8, description: 'Стрижки, окрашивание, уход' },
-  { branch: 'Южный филиал (Ботаника / Чкаловский)', name: 'Игорь Белов', specialty: 'Барбер', experience: 6, description: 'Мужской зал, классические стрижки' },
-  { branch: 'Южный филиал (Ботаника / Чкаловский)', name: 'Светлана Зайцева', specialty: 'Колорист', experience: 9, description: 'Сложные окрашивания, восстановление' }
+  // Р®Р¶РЅС‹Р№ С„РёР»РёР°Р»
+  { branch: 'Р®Р¶РЅС‹Р№ С„РёР»РёР°Р» (Р‘РѕС‚Р°РЅРёРєР° / Р§РєР°Р»РѕРІСЃРєРёР№)', name: 'РћР»СЊРіР° РќРѕРІРёРєРѕРІР°', specialty: 'РЎС‚РёР»РёСЃС‚-РєРѕР»РѕСЂРёСЃС‚', experience: 8, description: 'РЎС‚СЂРёР¶РєРё, РѕРєСЂР°С€РёРІР°РЅРёРµ, СѓС…РѕРґ' },
+  { branch: 'Р®Р¶РЅС‹Р№ С„РёР»РёР°Р» (Р‘РѕС‚Р°РЅРёРєР° / Р§РєР°Р»РѕРІСЃРєРёР№)', name: 'РРіРѕСЂСЊ Р‘РµР»РѕРІ', specialty: 'Р‘Р°СЂР±РµСЂ', experience: 6, description: 'РњСѓР¶СЃРєРѕР№ Р·Р°Р», РєР»Р°СЃСЃРёС‡РµСЃРєРёРµ СЃС‚СЂРёР¶РєРё' },
+  { branch: 'Р®Р¶РЅС‹Р№ С„РёР»РёР°Р» (Р‘РѕС‚Р°РЅРёРєР° / Р§РєР°Р»РѕРІСЃРєРёР№)', name: 'РЎРІРµС‚Р»Р°РЅР° Р—Р°Р№С†РµРІР°', specialty: 'РљРѕР»РѕСЂРёСЃС‚', experience: 9, description: 'РЎР»РѕР¶РЅС‹Рµ РѕРєСЂР°С€РёРІР°РЅРёСЏ, РІРѕСЃСЃС‚Р°РЅРѕРІР»РµРЅРёРµ' }
 ];
 
 const insertMaster = db.db.prepare(`
@@ -120,43 +120,52 @@ for (const master of masters) {
     master.experience, master.description
   );
   masterIds[master.name] = result.lastInsertRowid;
-  console.log(`? Мастер: ${master.name} (${master.specialty})`);
+  console.log(`? РњР°СЃС‚РµСЂ: ${master.name} (${master.specialty})`);
 }
 
-// ========== СВЯЗИ МАСТЕР-УСЛУГА ==========
-// Какие услуги оказывает каждый мастер (с ценами)
+// ========== РЎР’РЇР—Р РњРђРЎРўР•Р -РЈРЎР›РЈР“Рђ ==========
 const masterServicesMap = {
-  'Анна Соколова': ['Женская стрижка', 'Мужская стрижка', 'Детская стрижка', 'Окрашивание в один тон', 'Укладка', 'Уход за волосами'],
-  'Дмитрий Волков': ['Мужская стрижка', 'Стрижка бороды', 'Королевское бритьё'],
-  'Елена Морозова': ['Женская стрижка', 'Окрашивание в один тон', 'Сложное окрашивание', 'Мелирование', 'Уход за волосами', 'Кератиновое выпрямление'],
-  'Мария Кузнецова': ['Женская стрижка', 'Детская стрижка', 'Укладка', 'Свадебная причёска'],
-  'Алексей Орлов': ['Мужская стрижка', 'Детская стрижка', 'Стрижка бороды', 'Королевское бритьё'],
-  'Ольга Новикова': ['Женская стрижка', 'Мужская стрижка', 'Окрашивание в один тон', 'Сложное окрашивание', 'Уход за волосами'],
-  'Игорь Белов': ['Мужская стрижка', 'Стрижка бороды', 'Королевское бритьё'],
-  'Светлана Зайцева': ['Женская стрижка', 'Окрашивание в один тон', 'Сложное окрашивание', 'Мелирование', 'Кератиновое выпрямление']
+  'РђРЅРЅР° РЎРѕРєРѕР»РѕРІР°': ['Р–РµРЅСЃРєР°СЏ СЃС‚СЂРёР¶РєР°', 'РњСѓР¶СЃРєР°СЏ СЃС‚СЂРёР¶РєР°', 'Р”РµС‚СЃРєР°СЏ СЃС‚СЂРёР¶РєР°', 'РћРєСЂР°С€РёРІР°РЅРёРµ РІ РѕРґРёРЅ С‚РѕРЅ', 'РЈРєР»Р°РґРєР°', 'РЈС…РѕРґ Р·Р° РІРѕР»РѕСЃР°РјРё'],
+  'Р”РјРёС‚СЂРёР№ Р’РѕР»РєРѕРІ': ['РњСѓР¶СЃРєР°СЏ СЃС‚СЂРёР¶РєР°', 'РЎС‚СЂРёР¶РєР° Р±РѕСЂРѕРґС‹', 'РљРѕСЂРѕР»РµРІСЃРєРѕРµ Р±СЂРёС‚СЊС‘'],
+  'Р•Р»РµРЅР° РњРѕСЂРѕР·РѕРІР°': ['Р–РµРЅСЃРєР°СЏ СЃС‚СЂРёР¶РєР°', 'РћРєСЂР°С€РёРІР°РЅРёРµ РІ РѕРґРёРЅ С‚РѕРЅ', 'РЎР»РѕР¶РЅРѕРµ РѕРєСЂР°С€РёРІР°РЅРёРµ', 'РњРµР»РёСЂРѕРІР°РЅРёРµ', 'РЈС…РѕРґ Р·Р° РІРѕР»РѕСЃР°РјРё', 'РљРµСЂР°С‚РёРЅРѕРІРѕРµ РІС‹РїСЂСЏРјР»РµРЅРёРµ'],
+  'РњР°СЂРёСЏ РљСѓР·РЅРµС†РѕРІР°': ['Р–РµРЅСЃРєР°СЏ СЃС‚СЂРёР¶РєР°', 'Р”РµС‚СЃРєР°СЏ СЃС‚СЂРёР¶РєР°', 'РЈРєР»Р°РґРєР°', 'РЎРІР°РґРµР±РЅР°СЏ РїСЂРёС‡С‘СЃРєР°'],
+  'РђР»РµРєСЃРµР№ РћСЂР»РѕРІ': ['РњСѓР¶СЃРєР°СЏ СЃС‚СЂРёР¶РєР°', 'Р”РµС‚СЃРєР°СЏ СЃС‚СЂРёР¶РєР°', 'РЎС‚СЂРёР¶РєР° Р±РѕСЂРѕРґС‹', 'РљРѕСЂРѕР»РµРІСЃРєРѕРµ Р±СЂРёС‚СЊС‘'],
+  'РћР»СЊРіР° РќРѕРІРёРєРѕРІР°': ['Р–РµРЅСЃРєР°СЏ СЃС‚СЂРёР¶РєР°', 'РњСѓР¶СЃРєР°СЏ СЃС‚СЂРёР¶РєР°', 'РћРєСЂР°С€РёРІР°РЅРёРµ РІ РѕРґРёРЅ С‚РѕРЅ', 'РЎР»РѕР¶РЅРѕРµ РѕРєСЂР°С€РёРІР°РЅРёРµ', 'РЈС…РѕРґ Р·Р° РІРѕР»РѕСЃР°РјРё'],
+  'РРіРѕСЂСЊ Р‘РµР»РѕРІ': ['РњСѓР¶СЃРєР°СЏ СЃС‚СЂРёР¶РєР°', 'РЎС‚СЂРёР¶РєР° Р±РѕСЂРѕРґС‹', 'РљРѕСЂРѕР»РµРІСЃРєРѕРµ Р±СЂРёС‚СЊС‘'],
+  'РЎРІРµС‚Р»Р°РЅР° Р—Р°Р№С†РµРІР°': ['Р–РµРЅСЃРєР°СЏ СЃС‚СЂРёР¶РєР°', 'РћРєСЂР°С€РёРІР°РЅРёРµ РІ РѕРґРёРЅ С‚РѕРЅ', 'РЎР»РѕР¶РЅРѕРµ РѕРєСЂР°С€РёРІР°РЅРёРµ', 'РњРµР»РёСЂРѕРІР°РЅРёРµ', 'РљРµСЂР°С‚РёРЅРѕРІРѕРµ РІС‹РїСЂСЏРјР»РµРЅРёРµ']
 };
 
 const insertMasterService = db.db.prepare(`
-  INSERT INTO master_services (master_id, service_id, price, duration_minutes)
+  INSERT OR IGNORE INTO master_services (master_id, service_id, price, duration_minutes)
   VALUES (?, ?, ?, ?)
 `);
 
+let masterServicesCount = 0;
 for (const [masterName, serviceNames] of Object.entries(masterServicesMap)) {
   const masterId = masterIds[masterName];
   for (const serviceName of serviceNames) {
     const serviceId = serviceIds[serviceName];
     const service = services.find(s => s.name === serviceName);
     
-    // Цена — среднее между min и max
+    if (!serviceId || !service) {
+      console.log(`?? РџСЂРѕРїСѓС‰РµРЅРѕ: ${masterName} ? ${serviceName} (РЅРµ РЅР°Р№РґРµРЅРѕ)`);
+      continue;
+    }
+    
+    // Р¦РµРЅР° вЂ” СЃСЂРµРґРЅРµРµ РјРµР¶РґСѓ min Рё max
     const price = Math.round((service.price_min + service.price_max) / 2);
     
-    insertMasterService.run(masterId, serviceId, price, service.duration_minutes);
+    const result = insertMasterService.run(masterId, serviceId, price, service.duration_minutes);
+    if (result.changes > 0) {
+      masterServicesCount++;
+    }
   }
-  console.log(`? Услуги для ${masterName}: ${serviceNames.length} шт.`);
+  console.log(`? РЈСЃР»СѓРіРё РґР»СЏ ${masterName}: ${serviceNames.length} С€С‚.`);
 }
+console.log(`? Р’СЃРµРіРѕ РґРѕР±Р°РІР»РµРЅРѕ СЃРІСЏР·РµР№: ${masterServicesCount}`);
 
-// ========== ГРАФИК РАБОТЫ ==========
-// Все мастера работают Пн-Сб, с 9:00 до 21:00
+// ========== Р“Р РђР¤РРљ Р РђР‘РћРўР« ==========
+// Р’СЃРµ РјР°СЃС‚РµСЂР° СЂР°Р±РѕС‚Р°СЋС‚ РџРЅ-РЎР±, СЃ 9:00 РґРѕ 21:00
 const insertSchedule = db.db.prepare(`
   INSERT INTO schedule (master_id, day_of_week, start_time, end_time)
   VALUES (?, ?, ?, ?)
@@ -164,26 +173,26 @@ const insertSchedule = db.db.prepare(`
 
 for (const masterName of Object.keys(masterIds)) {
   const masterId = masterIds[masterName];
-  // Пн-Сб (1-6), Вс — выходной (0)
+  // РџРЅ-РЎР± (1-6), Р’СЃ вЂ” РІС‹С…РѕРґРЅРѕР№ (0)
   for (let day = 1; day <= 6; day++) {
     insertSchedule.run(masterId, day, '09:00', '21:00');
   }
 }
-console.log('? График работы для всех мастеров');
+console.log('? Р“СЂР°С„РёРє СЂР°Р±РѕС‚С‹ РґР»СЏ РІСЃРµС… РјР°СЃС‚РµСЂРѕРІ');
 
-// ========== АДМИНЫ ==========
-// Добавляем админов из .env
+// ========== РђР”РњРРќР« ==========
+// Р”РѕР±Р°РІР»СЏРµРј Р°РґРјРёРЅРѕРІ РёР· .env
 const adminIds = process.env.ADMIN_IDS ? process.env.ADMIN_IDS.split(',').map(id => parseInt(id.trim())) : [18245428];
 const insertAdmin = db.db.prepare('INSERT INTO admins (user_id, name, role) VALUES (?, ?, ?)');
 
 for (const adminId of adminIds) {
-  insertAdmin.run(adminId, 'Администратор', 'superadmin');
-  console.log(`? Админ добавлен: ${adminId}`);
+  insertAdmin.run(adminId, 'РђРґРјРёРЅРёСЃС‚СЂР°С‚РѕСЂ', 'superadmin');
+  console.log(`? РђРґРјРёРЅ РґРѕР±Р°РІР»РµРЅ: ${adminId}`);
 }
 
-console.log('\n? База данных успешно заполнена!');
-console.log(`?? Статистика:`);
-console.log(`   • Филиалов: ${Object.keys(branchIds).length}`);
-console.log(`   • Услуг: ${Object.keys(serviceIds).length}`);
-console.log(`   • Мастеров: ${Object.keys(masterIds).length}`);
-console.log(`   • Админов: ${adminIds.length}`);
+console.log('\n? Р‘Р°Р·Р° РґР°РЅРЅС‹С… СѓСЃРїРµС€РЅРѕ Р·Р°РїРѕР»РЅРµРЅР°!');
+console.log(`?? РЎС‚Р°С‚РёСЃС‚РёРєР°:`);
+console.log(`   вЂў Р¤РёР»РёР°Р»РѕРІ: ${Object.keys(branchIds).length}`);
+console.log(`   вЂў РЈСЃР»СѓРі: ${Object.keys(serviceIds).length}`);
+console.log(`   вЂў РњР°СЃС‚РµСЂРѕРІ: ${Object.keys(masterIds).length}`);
+console.log(`   вЂў РђРґРјРёРЅРѕРІ: ${adminIds.length}`);

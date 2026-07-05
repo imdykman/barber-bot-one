@@ -1,16 +1,16 @@
 const Database = require('better-sqlite3');
 const path = require('path');
 
-// Подключаемся к БД (создастся автоматически)
+// РџРѕРґРєР»СЋС‡Р°РµРјСЃСЏ Рє Р‘Р” (СЃРѕР·РґР°СЃС‚СЃСЏ Р°РІС‚РѕРјР°С‚РёС‡РµСЃРєРё)
 const db = new Database(path.join(__dirname, 'barber.db'));
 
-// Включаем WAL-режим для лучшей производительности
+// Р’РєР»СЋС‡Р°РµРј WAL-СЂРµР¶РёРј РґР»СЏ Р»СѓС‡С€РµР№ РїСЂРѕРёР·РІРѕРґРёС‚РµР»СЊРЅРѕСЃС‚Рё
 db.pragma('journal_mode = WAL');
 db.pragma('foreign_keys = ON');
 
-// ========== СОЗДАНИЕ ТАБЛИЦ ==========
+// ========== РЎРћР—Р”РђРќРР• РўРђР‘Р›РР¦ ==========
 
-// Филиалы
+// Р¤РёР»РёР°Р»С‹
 db.exec(`
   CREATE TABLE IF NOT EXISTS branches (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -23,7 +23,7 @@ db.exec(`
   )
 `);
 
-// Мастера
+// РњР°СЃС‚РµСЂР°
 db.exec(`
   CREATE TABLE IF NOT EXISTS masters (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -39,7 +39,7 @@ db.exec(`
   )
 `);
 
-// Услуги
+// РЈСЃР»СѓРіРё
 db.exec(`
   CREATE TABLE IF NOT EXISTS services (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -54,7 +54,7 @@ db.exec(`
   )
 `);
 
-// Связь мастер-услуга (с ценой и длительностью для конкретного мастера)
+// РЎРІСЏР·СЊ РјР°СЃС‚РµСЂ-СѓСЃР»СѓРіР° (СЃ С†РµРЅРѕР№ Рё РґР»РёС‚РµР»СЊРЅРѕСЃС‚СЊСЋ РґР»СЏ РєРѕРЅРєСЂРµС‚РЅРѕРіРѕ РјР°СЃС‚РµСЂР°)
 db.exec(`
   CREATE TABLE IF NOT EXISTS master_services (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -68,7 +68,7 @@ db.exec(`
   )
 `);
 
-// График работы мастеров
+// Р“СЂР°С„РёРє СЂР°Р±РѕС‚С‹ РјР°СЃС‚РµСЂРѕРІ
 db.exec(`
   CREATE TABLE IF NOT EXISTS schedule (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -81,7 +81,7 @@ db.exec(`
   )
 `);
 
-// Клиенты
+// РљР»РёРµРЅС‚С‹
 db.exec(`
   CREATE TABLE IF NOT EXISTS clients (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -92,7 +92,7 @@ db.exec(`
   )
 `);
 
-// Записи
+// Р—Р°РїРёСЃРё
 db.exec(`
   CREATE TABLE IF NOT EXISTS bookings (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -112,7 +112,7 @@ db.exec(`
   )
 `);
 
-// Админы
+// РђРґРјРёРЅС‹
 db.exec(`
   CREATE TABLE IF NOT EXISTS admins (
     user_id INTEGER PRIMARY KEY,
@@ -124,7 +124,7 @@ db.exec(`
   )
 `);
 
-// Выходные/праздники (когда мастер не работает)
+// Р’С‹С…РѕРґРЅС‹Рµ/РїСЂР°Р·РґРЅРёРєРё (РєРѕРіРґР° РјР°СЃС‚РµСЂ РЅРµ СЂР°Р±РѕС‚Р°РµС‚)
 db.exec(`
   CREATE TABLE IF NOT EXISTS holidays (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -137,19 +137,19 @@ db.exec(`
   )
 `);
 
-// ========== ЭКСПОРТ ФУНКЦИЙ ==========
+// ========== Р­РљРЎРџРћР Рў Р¤РЈРќРљР¦РР™ ==========
 
-// Получить все активные филиалы
+// РџРѕР»СѓС‡РёС‚СЊ РІСЃРµ Р°РєС‚РёРІРЅС‹Рµ С„РёР»РёР°Р»С‹
 function getBranches() {
   return db.prepare('SELECT * FROM branches WHERE is_active = 1').all();
 }
 
-// Получить филиал по ID
+// РџРѕР»СѓС‡РёС‚СЊ С„РёР»РёР°Р» РїРѕ ID
 function getBranch(id) {
   return db.prepare('SELECT * FROM branches WHERE id = ?').get(id);
 }
 
-// Получить мастеров филиала
+// РџРѕР»СѓС‡РёС‚СЊ РјР°СЃС‚РµСЂРѕРІ С„РёР»РёР°Р»Р°
 function getMastersByBranch(branchId) {
   return db.prepare(`
     SELECT * FROM masters 
@@ -158,12 +158,12 @@ function getMastersByBranch(branchId) {
   `).all(branchId);
 }
 
-// Получить мастера по ID
+// РџРѕР»СѓС‡РёС‚СЊ РјР°СЃС‚РµСЂР° РїРѕ ID
 function getMaster(id) {
   return db.prepare('SELECT * FROM masters WHERE id = ?').get(id);
 }
 
-// Получить услуги мастера
+// РџРѕР»СѓС‡РёС‚СЊ СѓСЃР»СѓРіРё РјР°СЃС‚РµСЂР°
 function getServicesByMaster(masterId) {
   return db.prepare(`
     SELECT s.*, ms.price, ms.duration_minutes
@@ -174,26 +174,26 @@ function getServicesByMaster(masterId) {
   `).all(masterId);
 }
 
-// Получить все услуги
+// РџРѕР»СѓС‡РёС‚СЊ РІСЃРµ СѓСЃР»СѓРіРё
 function getServices() {
   return db.prepare('SELECT * FROM services WHERE is_active = 1 ORDER BY category, name').all();
 }
 
-// Получить услугу по ID
+// РџРѕР»СѓС‡РёС‚СЊ СѓСЃР»СѓРіСѓ РїРѕ ID
 function getService(id) {
   return db.prepare('SELECT * FROM services WHERE id = ?').get(id);
 }
 
-// Получить график мастера
+// РџРѕР»СѓС‡РёС‚СЊ РіСЂР°С„РёРє РјР°СЃС‚РµСЂР°
 function getMasterSchedule(masterId) {
   return db.prepare('SELECT * FROM schedule WHERE master_id = ?').all(masterId);
 }
 
-// Получить или создать клиента
+// РџРѕР»СѓС‡РёС‚СЊ РёР»Рё СЃРѕР·РґР°С‚СЊ РєР»РёРµРЅС‚Р°
 function getOrCreateClient(userId, name = null, phone = null) {
   const existing = db.prepare('SELECT * FROM clients WHERE user_id = ?').get(userId);
   if (existing) {
-    // Обновляем данные, если они изменились
+    // РћР±РЅРѕРІР»СЏРµРј РґР°РЅРЅС‹Рµ, РµСЃР»Рё РѕРЅРё РёР·РјРµРЅРёР»РёСЃСЊ
     if ((name && !existing.name) || (phone && !existing.phone)) {
       db.prepare(`
         UPDATE clients 
@@ -209,7 +209,7 @@ function getOrCreateClient(userId, name = null, phone = null) {
   return db.prepare('SELECT * FROM clients WHERE user_id = ?').get(userId);
 }
 
-// Создать запись
+// РЎРѕР·РґР°С‚СЊ Р·Р°РїРёСЃСЊ
 function createBooking(clientId, masterId, serviceId, branchId, date, time, notes = null) {
   const result = db.prepare(`
     INSERT INTO bookings (client_id, master_id, service_id, branch_id, booking_date, booking_time, notes)
@@ -219,7 +219,7 @@ function createBooking(clientId, masterId, serviceId, branchId, date, time, note
   return db.prepare('SELECT * FROM bookings WHERE id = ?').get(result.lastInsertRowid);
 }
 
-// Получить записи клиента
+// РџРѕР»СѓС‡РёС‚СЊ Р·Р°РїРёСЃРё РєР»РёРµРЅС‚Р°
 function getClientBookings(clientId) {
   return db.prepare(`
     SELECT b.*, m.name as master_name, s.name as service_name, br.name as branch_name
@@ -232,7 +232,7 @@ function getClientBookings(clientId) {
   `).all(clientId);
 }
 
-// Получить записи мастера на дату
+// РџРѕР»СѓС‡РёС‚СЊ Р·Р°РїРёСЃРё РјР°СЃС‚РµСЂР° РЅР° РґР°С‚Сѓ
 function getMasterBookings(masterId, date) {
   return db.prepare(`
     SELECT b.*, c.name as client_name, c.phone as client_phone, s.name as service_name
@@ -244,7 +244,7 @@ function getMasterBookings(masterId, date) {
   `).all(masterId, date);
 }
 
-// Получить записи филиала на дату
+// РџРѕР»СѓС‡РёС‚СЊ Р·Р°РїРёСЃРё С„РёР»РёР°Р»Р° РЅР° РґР°С‚Сѓ
 function getBranchBookings(branchId, date) {
   return db.prepare(`
     SELECT b.*, m.name as master_name, c.name as client_name, c.phone as client_phone, s.name as service_name
@@ -257,29 +257,29 @@ function getBranchBookings(branchId, date) {
   `).all(branchId, date);
 }
 
-// Проверить, является ли пользователь админом
+// РџСЂРѕРІРµСЂРёС‚СЊ, СЏРІР»СЏРµС‚СЃСЏ Р»Рё РїРѕР»СЊР·РѕРІР°С‚РµР»СЊ Р°РґРјРёРЅРѕРј
 function isAdmin(userId) {
   return db.prepare('SELECT * FROM admins WHERE user_id = ?').get(userId);
 }
 
-// Проверить занятость времени
+// РџСЂРѕРІРµСЂРёС‚СЊ Р·Р°РЅСЏС‚РѕСЃС‚СЊ РІСЂРµРјРµРЅРё
 function isTimeSlotFree(masterId, date, time, durationMinutes) {
-  // Получаем все записи мастера на эту дату
+  // РџРѕР»СѓС‡Р°РµРј РІСЃРµ Р·Р°РїРёСЃРё РјР°СЃС‚РµСЂР° РЅР° СЌС‚Сѓ РґР°С‚Сѓ
   const bookings = getMasterBookings(masterId, date);
   
-  // Парсим время начала нового слота
+  // РџР°СЂСЃРёРј РІСЂРµРјСЏ РЅР°С‡Р°Р»Р° РЅРѕРІРѕРіРѕ СЃР»РѕС‚Р°
   const [newHours, newMinutes] = time.split(':').map(Number);
   const newStart = newHours * 60 + newMinutes;
   const newEnd = newStart + durationMinutes;
   
-  // Проверяем пересечения с существующими записями
+  // РџСЂРѕРІРµСЂСЏРµРј РїРµСЂРµСЃРµС‡РµРЅРёСЏ СЃ СЃСѓС‰РµСЃС‚РІСѓСЋС‰РёРјРё Р·Р°РїРёСЃСЏРјРё
   for (const booking of bookings) {
     const [bHours, bMinutes] = booking.booking_time.split(':').map(Number);
     const service = getService(booking.service_id);
     const bStart = bHours * 60 + bMinutes;
     const bEnd = bStart + service.duration_minutes;
     
-    // Если есть пересечение
+    // Р•СЃР»Рё РµСЃС‚СЊ РїРµСЂРµСЃРµС‡РµРЅРёРµ
     if (newStart < bEnd && newEnd > bStart) {
       return false;
     }
@@ -288,23 +288,23 @@ function isTimeSlotFree(masterId, date, time, durationMinutes) {
   return true;
 }
 
-// Получить свободные слоты мастера на дату
+// РџРѕР»СѓС‡РёС‚СЊ СЃРІРѕР±РѕРґРЅС‹Рµ СЃР»РѕС‚С‹ РјР°СЃС‚РµСЂР° РЅР° РґР°С‚Сѓ
 function getFreeTimeSlots(masterId, date) {
   const schedule = getMasterSchedule(masterId);
-  const dayOfWeek = new Date(date).getDay(); // 0 = воскресенье, 6 = суббота
+  const dayOfWeek = new Date(date).getDay(); // 0 = РІРѕСЃРєСЂРµСЃРµРЅСЊРµ, 6 = СЃСѓР±Р±РѕС‚Р°
   
-  // Находим график для этого дня недели
+  // РќР°С…РѕРґРёРј РіСЂР°С„РёРє РґР»СЏ СЌС‚РѕРіРѕ РґРЅСЏ РЅРµРґРµР»Рё
   const daySchedule = schedule.find(s => s.day_of_week === dayOfWeek);
   if (!daySchedule) return [];
   
-  // Проверяем, не выходной ли это день
+  // РџСЂРѕРІРµСЂСЏРµРј, РЅРµ РІС‹С…РѕРґРЅРѕР№ Р»Рё СЌС‚Рѕ РґРµРЅСЊ
   const holiday = db.prepare(`
     SELECT * FROM holidays 
     WHERE master_id = ? AND holiday_date = ?
   `).get(masterId, date);
   if (holiday) return [];
   
-  // Генерируем слоты с шагом 30 минут
+  // Р“РµРЅРµСЂРёСЂСѓРµРј СЃР»РѕС‚С‹ СЃ С€Р°РіРѕРј 30 РјРёРЅСѓС‚
   const slots = [];
   const [startH, startM] = daySchedule.start_time.split(':').map(Number);
   const [endH, endM] = daySchedule.end_time.split(':').map(Number);
@@ -316,7 +316,7 @@ function getFreeTimeSlots(masterId, date) {
     const mins = minutes % 60;
     const timeStr = `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
     
-    // Проверяем, свободен ли слот (минимум 60 минут до конца рабочего дня)
+    // РџСЂРѕРІРµСЂСЏРµРј, СЃРІРѕР±РѕРґРµРЅ Р»Рё СЃР»РѕС‚ (РјРёРЅРёРјСѓРј 60 РјРёРЅСѓС‚ РґРѕ РєРѕРЅС†Р° СЂР°Р±РѕС‡РµРіРѕ РґРЅСЏ)
     if (isTimeSlotFree(masterId, date, timeStr, 60)) {
       slots.push(timeStr);
     }
