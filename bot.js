@@ -10,6 +10,7 @@ const { showMasters } = require('./handlers/client/masters');
 const { showServices } = require('./handlers/client/services');
 const { showCalendar } = require('./handlers/client/calendar');
 const { showTimeSlots } = require('./handlers/client/time');
+const { showBookingConfirmation, confirmBooking } = require('./handlers/client/booking');
 
 // ========== СОЗДАНИЕ БОТА ==========
 const BOT_TOKEN = process.env.MAX_BOT_API_TOKEN;
@@ -89,6 +90,20 @@ bot.on('message_callback', async (ctx) => {
   if (data === 'back_to_calendar') {
     console.log(`📅 Возврат к календарю`);
     await showCalendar(ctx, userId, userStates);
+    return;
+  }
+  // Выбор времени
+  if (data.startsWith('time_')) {
+    const time = data.replace('time_', '');
+    console.log(`🕐 Выбрано время: ${time}`);
+    await showBookingConfirmation(ctx, userId, userStates, time);
+    return;
+  }
+
+  // Подтверждение записи
+  if (data === 'confirm_booking') {
+    console.log(`✅ Подтверждение записи`);
+    await confirmBooking(ctx, userId, userStates);
     return;
   }
   // Заглушка для категорий (не кликабельные)
