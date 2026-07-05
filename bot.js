@@ -2,24 +2,6 @@
 const { Bot, Keyboard } = require('@maxhub/max-bot-api');
 require('dotenv').config();
 
-// ========== SSL СЕРТИФИКАТЫ ДЛЯ WINDOWS ==========
-// Автоматически извлекает сертификаты из хранилища Windows
-try {
-  const winCa = require('win-ca');
-  winCa({
-    generator: 'derive',
-    inject: '+',
-    ondata: (crt) => {
-      // Тихо обрабатываем сертификаты
-    },
-    onend: () => {
-      console.log('✅ SSL-сертификаты Windows загружены');
-    },
-  });
-} catch (error) {
-  console.log('⚠️ win-ca не загружен, используем стандартные сертификаты');
-}
-
 // ========== ИМПОРТ МОДУЛЕЙ ==========
 const { getUserId } = require('./utils/getUserId');
 const { userStates } = require('./services/states');
