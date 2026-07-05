@@ -1,0 +1,346 @@
+const Database = require('better-sqlite3');
+const path = require('path');
+
+// Подключаемся к БД (создастся автоматически)
+const db = new Database(path.join(__dirname, 'barber.db'));
+
+// Включаем WAL-режим для лучшей производительности
+db.pragma('journal_mode = WAL');
+db.pragma('foreign_keys = ON');
+
+// ========== СОЗДАНИЕ ТАБЛИЦ ==========
+
+// Филиалы
+db.exec(`
+  CREATE TABLE IF NOT EXISTS branches (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    address TEXT NOT NULL,
+    phone TEXT,
+    work_hours TEXT,
+    is_active INTEGER DEFAULT 1,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )
+`);
+
+// Мастера
+db.exec(`
+  CREATE TABLE IF NOT EXISTS masters (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    branch_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    specialty TEXT NOT NULL,
+    experience INTEGER DEFAULT 0,
+    description TEXT,
+    photo_url TEXT,
+    is_active INTEGER DEFAULT 1,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (branch_id) REFERENCES branches(id)
+  )
+`);
+
+// Услуги
+db.exec(`
+  CREATE TABLE IF NOT EXISTS services (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    category TEXT NOT NULL,
+    price_min INTEGER NOT NULL,
+    price_max INTEGER,
+    duration_minutes INTEGER NOT NULL,
+    description TEXT,
+    is_active INTEGER DEFAULT 1,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )
+`);
+
+// Связь мастер-услуга (с ценой и длительностью для конкретного мастера)
+db.exec(`
+  CREATE TABLE IF NOT EXISTS master_services (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    master_id INTEGER NOT NULL,
+    service_id INTEGER NOT NULL,
+    price INTEGER NOT NULL,
+    duration_minutes INTEGER NOT NULL,
+    FOREIGN KEY (master_id) REFERENCES masters(id),
+    FOREIGN KEY (service_id) REFERENCES services(id),
+    UNIQUE(master_id, service_id)
+  )
+`);
+
+// График работы мастеров
+db.exec(`
+  CREATE TABLE IF NOT EXISTS schedule (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    master_id INTEGER NOT NULL,
+    day_of_week INTEGER NOT NULL,
+    start_time TEXT NOT NULL,
+    end_time TEXT NOT NULL,
+    FOREIGN KEY (master_id) REFERENCES masters(id),
+    UNIQUE(master_id, day_of_week)
+  )
+`);
+
+// Клиенты
+db.exec(`
+  CREATE TABLE IF NOT EXISTS clients (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER UNIQUE NOT NULL,
+    name TEXT,
+    phone TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )
+`);
+
+// Записи
+db.exec(`
+  CREATE TABLE IF NOT EXISTS bookings (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    client_id INTEGER NOT NULL,
+    master_id INTEGER NOT NULL,
+    service_id INTEGER NOT NULL,
+    branch_id INTEGER NOT NULL,
+    booking_date TEXT NOT NULL,
+    booking_time TEXT NOT NULL,
+    status TEXT DEFAULT 'confirmed',
+    notes TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (client_id) REFERENCES clients(id),
+    FOREIGN KEY (master_id) REFERENCES masters(id),
+    FOREIGN KEY (service_id) REFERENCES services(id),
+    FOREIGN KEY (branch_id) REFERENCES branches(id)
+  )
+`);
+
+// Админы
+db.exec(`
+  CREATE TABLE IF NOT EXISTS admins (
+    user_id INTEGER PRIMARY KEY,
+    name TEXT,
+    role TEXT DEFAULT 'admin',
+    branch_id INTEGER,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (branch_id) REFERENCES branches(id)
+  )
+`);
+
+// Выходные/праздники (когда мастер не работает)
+db.exec(`
+  CREATE TABLE IF NOT EXISTS holidays (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    master_id INTEGER,
+    branch_id INTEGER,
+    holiday_date TEXT NOT NULL,
+    reason TEXT,
+    FOREIGN KEY (master_id) REFERENCES masters(id),
+    FOREIGN KEY (branch_id) REFERENCES branches(id)
+  )
+`);
+
+// ========== ЭКСПОРТ ФУНКЦИЙ ==========
+
+// Получить все активные филиалы
+function getBranches() {
+  return db.prepare('SELECT * FROM branches WHERE is_active = 1').all();
+}
+
+// Получить филиал по ID
+function getBranch(id) {
+  return db.prepare('SELECT * FROM branches WHERE id = ?').get(id);
+}
+
+// Получить мастеров филиала
+function getMastersByBranch(branchId) {
+  return db.prepare(`
+    SELECT * FROM masters 
+    WHERE branch_id = ? AND is_active = 1
+    ORDER BY name
+  `).all(branchId);
+}
+
+// Получить мастера по ID
+function getMaster(id) {
+  return db.prepare('SELECT * FROM masters WHERE id = ?').get(id);
+}
+
+// Получить услуги мастера
+function getServicesByMaster(masterId) {
+  return db.prepare(`
+    SELECT s.*, ms.price, ms.duration_minutes
+    FROM services s
+    JOIN master_services ms ON s.id = ms.service_id
+    WHERE ms.master_id = ? AND s.is_active = 1
+    ORDER BY s.category, s.name
+  `).all(masterId);
+}
+
+// Получить все услуги
+function getServices() {
+  return db.prepare('SELECT * FROM services WHERE is_active = 1 ORDER BY category, name').all();
+}
+
+// Получить услугу по ID
+function getService(id) {
+  return db.prepare('SELECT * FROM services WHERE id = ?').get(id);
+}
+
+// Получить график мастера
+function getMasterSchedule(masterId) {
+  return db.prepare('SELECT * FROM schedule WHERE master_id = ?').all(masterId);
+}
+
+// Получить или создать клиента
+function getOrCreateClient(userId, name = null, phone = null) {
+  const existing = db.prepare('SELECT * FROM clients WHERE user_id = ?').get(userId);
+  if (existing) {
+    // Обновляем данные, если они изменились
+    if ((name && !existing.name) || (phone && !existing.phone)) {
+      db.prepare(`
+        UPDATE clients 
+        SET name = COALESCE(?, name), phone = COALESCE(?, phone)
+        WHERE user_id = ?
+      `).run(name, phone, userId);
+      return db.prepare('SELECT * FROM clients WHERE user_id = ?').get(userId);
+    }
+    return existing;
+  }
+  
+  db.prepare('INSERT INTO clients (user_id, name, phone) VALUES (?, ?, ?)').run(userId, name, phone);
+  return db.prepare('SELECT * FROM clients WHERE user_id = ?').get(userId);
+}
+
+// Создать запись
+function createBooking(clientId, masterId, serviceId, branchId, date, time, notes = null) {
+  const result = db.prepare(`
+    INSERT INTO bookings (client_id, master_id, service_id, branch_id, booking_date, booking_time, notes)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `).run(clientId, masterId, serviceId, branchId, date, time, notes);
+  
+  return db.prepare('SELECT * FROM bookings WHERE id = ?').get(result.lastInsertRowid);
+}
+
+// Получить записи клиента
+function getClientBookings(clientId) {
+  return db.prepare(`
+    SELECT b.*, m.name as master_name, s.name as service_name, br.name as branch_name
+    FROM bookings b
+    JOIN masters m ON b.master_id = m.id
+    JOIN services s ON b.service_id = s.id
+    JOIN branches br ON b.branch_id = br.id
+    WHERE b.client_id = ? AND b.status = 'confirmed'
+    ORDER BY b.booking_date DESC, b.booking_time DESC
+  `).all(clientId);
+}
+
+// Получить записи мастера на дату
+function getMasterBookings(masterId, date) {
+  return db.prepare(`
+    SELECT b.*, c.name as client_name, c.phone as client_phone, s.name as service_name
+    FROM bookings b
+    JOIN clients c ON b.client_id = c.id
+    JOIN services s ON b.service_id = s.id
+    WHERE b.master_id = ? AND b.booking_date = ? AND b.status = 'confirmed'
+    ORDER BY b.booking_time
+  `).all(masterId, date);
+}
+
+// Получить записи филиала на дату
+function getBranchBookings(branchId, date) {
+  return db.prepare(`
+    SELECT b.*, m.name as master_name, c.name as client_name, c.phone as client_phone, s.name as service_name
+    FROM bookings b
+    JOIN masters m ON b.master_id = m.id
+    JOIN clients c ON b.client_id = c.id
+    JOIN services s ON b.service_id = s.id
+    WHERE b.branch_id = ? AND b.booking_date = ? AND b.status = 'confirmed'
+    ORDER BY b.booking_time
+  `).all(branchId, date);
+}
+
+// Проверить, является ли пользователь админом
+function isAdmin(userId) {
+  return db.prepare('SELECT * FROM admins WHERE user_id = ?').get(userId);
+}
+
+// Проверить занятость времени
+function isTimeSlotFree(masterId, date, time, durationMinutes) {
+  // Получаем все записи мастера на эту дату
+  const bookings = getMasterBookings(masterId, date);
+  
+  // Парсим время начала нового слота
+  const [newHours, newMinutes] = time.split(':').map(Number);
+  const newStart = newHours * 60 + newMinutes;
+  const newEnd = newStart + durationMinutes;
+  
+  // Проверяем пересечения с существующими записями
+  for (const booking of bookings) {
+    const [bHours, bMinutes] = booking.booking_time.split(':').map(Number);
+    const service = getService(booking.service_id);
+    const bStart = bHours * 60 + bMinutes;
+    const bEnd = bStart + service.duration_minutes;
+    
+    // Если есть пересечение
+    if (newStart < bEnd && newEnd > bStart) {
+      return false;
+    }
+  }
+  
+  return true;
+}
+
+// Получить свободные слоты мастера на дату
+function getFreeTimeSlots(masterId, date) {
+  const schedule = getMasterSchedule(masterId);
+  const dayOfWeek = new Date(date).getDay(); // 0 = воскресенье, 6 = суббота
+  
+  // Находим график для этого дня недели
+  const daySchedule = schedule.find(s => s.day_of_week === dayOfWeek);
+  if (!daySchedule) return [];
+  
+  // Проверяем, не выходной ли это день
+  const holiday = db.prepare(`
+    SELECT * FROM holidays 
+    WHERE master_id = ? AND holiday_date = ?
+  `).get(masterId, date);
+  if (holiday) return [];
+  
+  // Генерируем слоты с шагом 30 минут
+  const slots = [];
+  const [startH, startM] = daySchedule.start_time.split(':').map(Number);
+  const [endH, endM] = daySchedule.end_time.split(':').map(Number);
+  const startMinutes = startH * 60 + startM;
+  const endMinutes = endH * 60 + endM;
+  
+  for (let minutes = startMinutes; minutes < endMinutes; minutes += 30) {
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    const timeStr = `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
+    
+    // Проверяем, свободен ли слот (минимум 60 минут до конца рабочего дня)
+    if (isTimeSlotFree(masterId, date, timeStr, 60)) {
+      slots.push(timeStr);
+    }
+  }
+  
+  return slots;
+}
+
+module.exports = {
+  db,
+  getBranches,
+  getBranch,
+  getMastersByBranch,
+  getMaster,
+  getServicesByMaster,
+  getServices,
+  getService,
+  getMasterSchedule,
+  getOrCreateClient,
+  createBooking,
+  getClientBookings,
+  getMasterBookings,
+  getBranchBookings,
+  isAdmin,
+  isTimeSlotFree,
+  getFreeTimeSlots
+};

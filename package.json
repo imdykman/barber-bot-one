@@ -1,0 +1,24 @@
+{
+  "name": "max-dialog-barber-bot",
+  "version": "1.0.0",
+  "description": "�������&�� � ��� ��� ������ � ��������������",
+  "main": "bot.js",
+  "scripts": {
+    "start": "node bot.js",
+    "seed": "node data/seed.js",
+    "reset": "node data/reset.js"
+  },
+  "keywords": [
+    "max",
+    "bot",
+    "barber",
+    "booking"
+  ],
+  "author": "Max-Dialog",
+  "license": "MIT",
+  "dependencies": {
+    "@maxhub/max-bot-api": "^0.2.4",
+    "better-sqlite3": "^12.11.1",
+    "dotenv": "^17.4.2"
+  }
+}
