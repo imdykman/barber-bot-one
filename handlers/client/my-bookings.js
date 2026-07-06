@@ -1,14 +1,14 @@
 const { Keyboard } = require('@maxhub/max-bot-api');
 const {
+  db,
   getActiveBookingsByClient,
   getPastBookingsByClient,
+  cancelBooking,
   getBookingById,
 } = require('../../database/database');
 
 async function showMyBookings(ctx, userId, userStates) {
-  const client = require('../../database/database')
-    .db.prepare('SELECT * FROM clients WHERE user_id = ?')
-    .get(userId);
+  const client = db.prepare('SELECT * FROM clients WHERE user_id = ?').get(userId);
 
   if (!client) {
     await ctx.reply(
@@ -138,9 +138,7 @@ async function showCancelConfirmation(ctx, userId, userStates, bookingId) {
 }
 
 async function confirmCancelBooking(ctx, userId, userStates, bookingId) {
-  const client = require('../../database/database')
-    .db.prepare('SELECT * FROM clients WHERE user_id = ?')
-    .get(userId);
+  const client = db.prepare('SELECT * FROM clients WHERE user_id = ?').get(userId);
 
   if (!client) {
     await ctx.reply('❌ Клиент не найден.', {
