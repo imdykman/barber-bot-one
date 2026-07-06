@@ -197,19 +197,26 @@ bot.on('message_created', async (ctx) => {
       console.log(`📱 Контакт:`, contactInfo);
 
       const state = userStates.get(userId);
+
       if (state && state.privacy_agreed) {
-        // Извлекаем имя и телефон из vCard
-        const name = contactInfo.tel?.name || 'Клиент';
-        const phone = contactInfo.tel?.valueOf() || '';
+        // Извлекаем имя и телефон
+        // tel - это строка, fullName - это имя
+        const name = contactInfo.fullName || 'Клиент';
+        const phone = contactInfo.tel || '';
+
+        console.log(`👤 Имя: ${name}, Телефон: ${phone}`);
 
         // Сохраняем контакт в состоянии
         state.client_name = name;
-        state.client_phone = phone;
+        state.client_phone = phone.startsWith('+') ? phone : `+${phone}`;
         userStates.set(userId, state);
 
         // Создаём запись
         await confirmBooking(ctx, userId, userStates);
         return;
+      } else {
+        console.log(`⚠️ Состояние не найдено или privacy_agreed не установлен`);
+        console.log(`Состояние:`, state);
       }
     }
   }
