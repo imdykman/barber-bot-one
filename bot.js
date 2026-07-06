@@ -15,6 +15,11 @@ const {
   confirmBooking,
   requestContact,
 } = require('./handlers/client/booking');
+const {
+  showMyBookings,
+  showCancelConfirmation,
+  confirmCancelBooking,
+} = require('./handlers/client/my-bookings');
 
 // ========== СОЗДАНИЕ БОТА ==========
 const BOT_TOKEN = process.env.MAX_BOT_API_TOKEN;
@@ -128,13 +133,24 @@ bot.on('message_callback', async (ctx) => {
 
   // Мои записи
   if (data === 'my_bookings') {
-    console.log(`📋 Запрос моих записей`);
-    await ctx.reply(
-      `📋 *Мои записи*\n\nУ вас пока нет активных записей.\n\nЗапишитесь в один из наших салонов!`,
-      {
-        attachments: [Keyboard.inlineKeyboard([[Keyboard.button.callback('⬅️ Назад', 'start')]])],
-      }
-    );
+    console.log(`📋 Мои записи`);
+    await showMyBookings(ctx, userId, userStates);
+    return;
+  }
+
+  // Запрос отмены записи
+  if (data.startsWith('cancel_')) {
+    const bookingId = parseInt(data.replace('cancel_', ''));
+    console.log(`❌ Запрос отмены записи: ${bookingId}`);
+    await showCancelConfirmation(ctx, userId, userStates, bookingId);
+    return;
+  }
+
+  // Подтверждение отмены записи
+  if (data.startsWith('confirm_cancel_')) {
+    const bookingId = parseInt(data.replace('confirm_cancel_', ''));
+    console.log(`✅ Подтверждение отмены записи: ${bookingId}`);
+    await confirmCancelBooking(ctx, userId, userStates, bookingId);
     return;
   }
 

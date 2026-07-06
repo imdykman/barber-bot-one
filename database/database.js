@@ -2,7 +2,7 @@ const Database = require('better-sqlite3');
 const path = require('path');
 
 // Подключаемся к БД (создастся автоматически)
-const db = new Database(path.join(__dirname, 'barber.db'));
+const db = new Database('database/barber.db');
 
 // Включаем WAL-режим для лучшей производительности
 db.pragma('journal_mode = WAL');
@@ -358,7 +358,73 @@ function getFreeTimeSlots(masterId, date) {
 
   return slots;
 }
+// ========== РАБОТА С ЗАПИСЯМИ ==========
 
+function getActiveBookingsByClient(clientId) {
+  const today = new Date().toISOString().split('T')[0];
+  return db
+    .prepare(
+      `
+    SELECT b.*, s.name as service_name, m.name as master_name, br.name as branch_name, br.address as branch_address
+    FROM bookings b
+    JOIN services s ON b.service_id = s.id
+    JOIN masters m ON b.master_id = m.id
+    JOIN branches br ON b.branch_id = br.id
+    WHERE b.client_id = ? 
+      AND b.booking_date >= ?
+      AND b.status = 'confirmed'
+    ORDER BY b.booking_date ASC, b.booking_time ASC
+  `
+    )
+    .all(clientId, today);
+}
+
+function getPastBookingsByClient(clientId) {
+  const today = new Date().toISOString().split('T')[0];
+  return db
+    .prepare(
+      `
+    SELECT b.*, s.name as service_name, m.name as master_name, br.name as branch_name, br.address as branch_address
+    FROM bookings b
+    JOIN services s ON b.service_id = s.id
+    JOIN masters m ON b.master_id = m.id
+    JOIN branches br ON b.branch_id = br.id
+    WHERE b.client_id = ? 
+      AND (b.booking_date < ? OR b.status = 'cancelled')
+    ORDER BY b.booking_date DESC, b.booking_time DESC
+    LIMIT 10
+  `
+    )
+    .all(clientId, today);
+}
+
+function cancelBooking(bookingId, clientId) {
+  const result = db
+    .prepare(
+      `
+    UPDATE bookings 
+    SET status = 'cancelled' 
+    WHERE id = ? AND client_id = ? AND status = 'confirmed'
+  `
+    )
+    .run(bookingId, clientId);
+  return result.changes > 0;
+}
+
+function getBookingById(bookingId) {
+  return db
+    .prepare(
+      `
+    SELECT b.*, s.name as service_name, m.name as master_name, br.name as branch_name, br.address as branch_address
+    FROM bookings b
+    JOIN services s ON b.service_id = s.id
+    JOIN masters m ON b.master_id = m.id
+    JOIN branches br ON b.branch_id = br.id
+    WHERE b.id = ?
+  `
+    )
+    .get(bookingId);
+}
 module.exports = {
   db,
   getBranches,
@@ -366,15 +432,12 @@ module.exports = {
   getMastersByBranch,
   getMaster,
   getServicesByMaster,
-  getServices,
   getService,
-  getMasterSchedule,
+  getFreeTimeSlots,
   getOrCreateClient,
   createBooking,
-  getClientBookings,
-  getMasterBookings,
-  getBranchBookings,
-  isAdmin,
-  isTimeSlotFree,
-  getFreeTimeSlots,
+  getActiveBookingsByClient,
+  getPastBookingsByClient,
+  cancelBooking,
+  getBookingById,
 };
