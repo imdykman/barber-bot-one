@@ -1,5 +1,5 @@
 const { Keyboard } = require('@maxhub/max-bot-api');
-const { getService, getMaster, getBranch } = require('../../database/database');
+const { getMaster, getBranch, db } = require('../../database/database');
 
 async function showBookingConfirmation(ctx, userId, userStates, time) {
   const state = userStates.get(userId);
@@ -11,9 +11,29 @@ async function showBookingConfirmation(ctx, userId, userStates, time) {
     return;
   }
 
-  const service = getService(state.service_id);
   const master = getMaster(state.master_id);
   const branch = getBranch(state.branch_id);
+
+  // Получаем услугу с ценой для конкретного мастера
+  const serviceWithPrice = require('../../database/database')
+    .db.prepare(
+      `
+  SELECT s.*, ms.price, ms.duration_minutes
+  FROM services s
+  JOIN master_services ms ON s.id = ms.service_id
+  WHERE ms.master_id = ? AND s.id = ?
+`
+    )
+    .get(state.master_id, state.service_id);
+
+  if (!serviceWithPrice) {
+    await ctx.reply('❌ Ошибка: услуга не найдена.', {
+      attachments: [Keyboard.inlineKeyboard([[Keyboard.button.callback('⬅️ В начало', 'start')]])],
+    });
+    return;
+  }
+
+  const service = serviceWithPrice;
 
   // Форматируем дату
   const date = new Date(state.booking_date);
@@ -28,12 +48,12 @@ async function showBookingConfirmation(ctx, userId, userStates, time) {
   userStates.set(userId, state);
 
   const keyboard = Keyboard.inlineKeyboard([
-    [Keyboard.button.callback('✅ Подтвердить запись', 'confirm_booking')],
+    [Keyboard.button.callback('✅ Согласен с политикой конфиденциальности', 'privacy_agree')],
     [Keyboard.button.callback('⬅️ Выбрать другое время', 'back_to_calendar')],
   ]);
 
   await ctx.reply(
-    `📋 *Подтверждение записи*\n\n` +
+    `📋 *Детали записи*\n\n` +
       `━━━━━━━━━━━━━━━━━━━━━━\n\n` +
       `🏢 *Филиал:* ${branch.name}\n` +
       `📍 ${branch.address}\n\n` +
@@ -45,12 +65,30 @@ async function showBookingConfirmation(ctx, userId, userStates, time) {
       `📅 *Дата:* ${displayDate}\n` +
       `🕐 *Время:* ${time}\n\n` +
       `━━━━━━━━━━━━━━━━━━━━━━\n\n` +
-      `Проверьте детали и подтвердите запись:`,
+      `🔒 *Политика конфиденциальности:*\n` +
+      `https://max-dialog.ru/privacy\n\n` +
+      `Для завершения записи необходимо согласие на обработку персональных данных:`,
     { attachments: [keyboard] }
   );
 }
+async function requestContact(ctx, userId, userStates) {
+  const keyboard = Keyboard.inlineKeyboard([
+    [Keyboard.button.requestContact('📱 Отправить контакт')],
+    [Keyboard.button.callback('⬅️ Назад', 'back_to_confirmation')],
+  ]);
 
-module.exports = { showBookingConfirmation };
+  await ctx.reply(
+    `📱 *Отправьте ваш контакт*\n\n` +
+      `Нажмите кнопку ниже, чтобы отправить ваш контакт из MAX.\n` +
+      `Это нужно для подтверждения записи и связи с вами.`,
+    { attachments: [keyboard] }
+  );
+}
+module.exports = {
+  showBookingConfirmation,
+  confirmBooking,
+  requestContact,
+};
 const { getOrCreateClient, createBooking } = require('../../database/database');
 
 async function confirmBooking(ctx, userId, userStates) {
@@ -70,8 +108,8 @@ async function confirmBooking(ctx, userId, userStates) {
   }
 
   try {
-    // Получаем или создаём клиента
-    const client = getOrCreateClient(userId);
+    // Получаем или создаём клиента с именем и телефоном
+    const client = getOrCreateClient(userId, state.client_name, state.client_phone);
 
     // Создаём запись
     const booking = createBooking(
@@ -91,9 +129,21 @@ async function confirmBooking(ctx, userId, userStates) {
       weekday: 'long',
     });
 
-    const service = getService(state.service_id);
     const master = getMaster(state.master_id);
     const branch = getBranch(state.branch_id);
+
+    const serviceWithPrice = db
+      .prepare(
+        `
+  SELECT s.*, ms.price, ms.duration_minutes
+  FROM services s
+  JOIN master_services ms ON s.id = ms.service_id
+  WHERE ms.master_id = ? AND s.id = ?
+`
+      )
+      .get(state.master_id, state.service_id);
+
+    const service = serviceWithPrice;
 
     // Очищаем состояние
     userStates.delete(userId);
@@ -106,6 +156,8 @@ async function confirmBooking(ctx, userId, userStates) {
     await ctx.reply(
       `✅ *Запись подтверждена!*\n\n` +
         `━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+        `👤 *Клиент:* ${client.name}\n` +
+        `📱 *Телефон:* ${client.phone}\n\n` +
         `🏢 ${branch.name}\n` +
         `📍 ${branch.address}\n\n` +
         `💇 ${master.name}\n` +
@@ -119,7 +171,7 @@ async function confirmBooking(ctx, userId, userStates) {
     );
 
     console.log(
-      `✅ Запись создана: ID ${booking.id}, клиент ${client.id}, мастер ${master.name}, ${state.booking_date} ${state.booking_time}`
+      `✅ Запись создана: ID ${booking.id}, клиент ${client.name} (${client.phone}), мастер ${master.name}, ${state.booking_date} ${state.booking_time}`
     );
   } catch (error) {
     console.error('❌ Ошибка создания записи:', error);
@@ -136,4 +188,8 @@ async function confirmBooking(ctx, userId, userStates) {
   }
 }
 
-module.exports = { showBookingConfirmation, confirmBooking };
+module.exports = {
+  showBookingConfirmation,
+  confirmBooking,
+  requestContact,
+};

@@ -151,11 +151,15 @@ function getBranch(id) {
 
 // Получить мастеров филиала
 function getMastersByBranch(branchId) {
-  return db.prepare(`
+  return db
+    .prepare(
+      `
     SELECT * FROM masters 
     WHERE branch_id = ? AND is_active = 1
     ORDER BY name
-  `).all(branchId);
+  `
+    )
+    .all(branchId);
 }
 
 // Получить мастера по ID
@@ -165,13 +169,17 @@ function getMaster(id) {
 
 // Получить услуги мастера
 function getServicesByMaster(masterId) {
-  return db.prepare(`
+  return db
+    .prepare(
+      `
     SELECT s.*, ms.price, ms.duration_minutes
     FROM services s
     JOIN master_services ms ON s.id = ms.service_id
     WHERE ms.master_id = ? AND s.is_active = 1
     ORDER BY s.category, s.name
-  `).all(masterId);
+  `
+    )
+    .all(masterId);
 }
 
 // Получить все услуги
@@ -195,33 +203,45 @@ function getOrCreateClient(userId, name = null, phone = null) {
   if (existing) {
     // Обновляем данные, если они изменились
     if ((name && !existing.name) || (phone && !existing.phone)) {
-      db.prepare(`
+      db.prepare(
+        `
         UPDATE clients 
         SET name = COALESCE(?, name), phone = COALESCE(?, phone)
         WHERE user_id = ?
-      `).run(name, phone, userId);
+      `
+      ).run(name, phone, userId);
       return db.prepare('SELECT * FROM clients WHERE user_id = ?').get(userId);
     }
     return existing;
   }
-  
-  db.prepare('INSERT INTO clients (user_id, name, phone) VALUES (?, ?, ?)').run(userId, name, phone);
+
+  db.prepare('INSERT INTO clients (user_id, name, phone) VALUES (?, ?, ?)').run(
+    userId,
+    name,
+    phone
+  );
   return db.prepare('SELECT * FROM clients WHERE user_id = ?').get(userId);
 }
 
 // Создать запись
 function createBooking(clientId, masterId, serviceId, branchId, date, time, notes = null) {
-  const result = db.prepare(`
+  const result = db
+    .prepare(
+      `
     INSERT INTO bookings (client_id, master_id, service_id, branch_id, booking_date, booking_time, notes)
     VALUES (?, ?, ?, ?, ?, ?, ?)
-  `).run(clientId, masterId, serviceId, branchId, date, time, notes);
-  
+  `
+    )
+    .run(clientId, masterId, serviceId, branchId, date, time, notes);
+
   return db.prepare('SELECT * FROM bookings WHERE id = ?').get(result.lastInsertRowid);
 }
 
 // Получить записи клиента
 function getClientBookings(clientId) {
-  return db.prepare(`
+  return db
+    .prepare(
+      `
     SELECT b.*, m.name as master_name, s.name as service_name, br.name as branch_name
     FROM bookings b
     JOIN masters m ON b.master_id = m.id
@@ -229,24 +249,32 @@ function getClientBookings(clientId) {
     JOIN branches br ON b.branch_id = br.id
     WHERE b.client_id = ? AND b.status = 'confirmed'
     ORDER BY b.booking_date DESC, b.booking_time DESC
-  `).all(clientId);
+  `
+    )
+    .all(clientId);
 }
 
 // Получить записи мастера на дату
 function getMasterBookings(masterId, date) {
-  return db.prepare(`
+  return db
+    .prepare(
+      `
     SELECT b.*, c.name as client_name, c.phone as client_phone, s.name as service_name
     FROM bookings b
     JOIN clients c ON b.client_id = c.id
     JOIN services s ON b.service_id = s.id
     WHERE b.master_id = ? AND b.booking_date = ? AND b.status = 'confirmed'
     ORDER BY b.booking_time
-  `).all(masterId, date);
+  `
+    )
+    .all(masterId, date);
 }
 
 // Получить записи филиала на дату
 function getBranchBookings(branchId, date) {
-  return db.prepare(`
+  return db
+    .prepare(
+      `
     SELECT b.*, m.name as master_name, c.name as client_name, c.phone as client_phone, s.name as service_name
     FROM bookings b
     JOIN masters m ON b.master_id = m.id
@@ -254,7 +282,9 @@ function getBranchBookings(branchId, date) {
     JOIN services s ON b.service_id = s.id
     WHERE b.branch_id = ? AND b.booking_date = ? AND b.status = 'confirmed'
     ORDER BY b.booking_time
-  `).all(branchId, date);
+  `
+    )
+    .all(branchId, date);
 }
 
 // Проверить, является ли пользователь админом
@@ -266,25 +296,25 @@ function isAdmin(userId) {
 function isTimeSlotFree(masterId, date, time, durationMinutes) {
   // Получаем все записи мастера на эту дату
   const bookings = getMasterBookings(masterId, date);
-  
+
   // Парсим время начала нового слота
   const [newHours, newMinutes] = time.split(':').map(Number);
   const newStart = newHours * 60 + newMinutes;
   const newEnd = newStart + durationMinutes;
-  
+
   // Проверяем пересечения с существующими записями
   for (const booking of bookings) {
     const [bHours, bMinutes] = booking.booking_time.split(':').map(Number);
     const service = getService(booking.service_id);
     const bStart = bHours * 60 + bMinutes;
     const bEnd = bStart + service.duration_minutes;
-    
+
     // Если есть пересечение
     if (newStart < bEnd && newEnd > bStart) {
       return false;
     }
   }
-  
+
   return true;
 }
 
@@ -292,36 +322,40 @@ function isTimeSlotFree(masterId, date, time, durationMinutes) {
 function getFreeTimeSlots(masterId, date) {
   const schedule = getMasterSchedule(masterId);
   const dayOfWeek = new Date(date).getDay(); // 0 = воскресенье, 6 = суббота
-  
+
   // Находим график для этого дня недели
-  const daySchedule = schedule.find(s => s.day_of_week === dayOfWeek);
+  const daySchedule = schedule.find((s) => s.day_of_week === dayOfWeek);
   if (!daySchedule) return [];
-  
+
   // Проверяем, не выходной ли это день
-  const holiday = db.prepare(`
+  const holiday = db
+    .prepare(
+      `
     SELECT * FROM holidays 
     WHERE master_id = ? AND holiday_date = ?
-  `).get(masterId, date);
+  `
+    )
+    .get(masterId, date);
   if (holiday) return [];
-  
+
   // Генерируем слоты с шагом 30 минут
   const slots = [];
   const [startH, startM] = daySchedule.start_time.split(':').map(Number);
   const [endH, endM] = daySchedule.end_time.split(':').map(Number);
   const startMinutes = startH * 60 + startM;
   const endMinutes = endH * 60 + endM;
-  
+
   for (let minutes = startMinutes; minutes < endMinutes; minutes += 30) {
     const hours = Math.floor(minutes / 60);
     const mins = minutes % 60;
     const timeStr = `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
-    
+
     // Проверяем, свободен ли слот (минимум 60 минут до конца рабочего дня)
     if (isTimeSlotFree(masterId, date, timeStr, 60)) {
       slots.push(timeStr);
     }
   }
-  
+
   return slots;
 }
 
@@ -342,5 +376,5 @@ module.exports = {
   getBranchBookings,
   isAdmin,
   isTimeSlotFree,
-  getFreeTimeSlots
+  getFreeTimeSlots,
 };

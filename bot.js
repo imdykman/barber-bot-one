@@ -10,7 +10,11 @@ const { showMasters } = require('./handlers/client/masters');
 const { showServices } = require('./handlers/client/services');
 const { showCalendar } = require('./handlers/client/calendar');
 const { showTimeSlots } = require('./handlers/client/time');
-const { showBookingConfirmation, confirmBooking } = require('./handlers/client/booking');
+const {
+  showBookingConfirmation,
+  confirmBooking,
+  requestContact,
+} = require('./handlers/client/booking');
 
 // ========== СОЗДАНИЕ БОТА ==========
 const BOT_TOKEN = process.env.MAX_BOT_API_TOKEN;
@@ -100,12 +104,28 @@ bot.on('message_callback', async (ctx) => {
     return;
   }
 
-  // Подтверждение записи
-  if (data === 'confirm_booking') {
-    console.log(`✅ Подтверждение записи`);
-    await confirmBooking(ctx, userId, userStates);
+  // Согласие с политикой конфиденциальности
+  if (data === 'privacy_agree') {
+    console.log(`🔒 Согласие с политикой конфиденциальности`);
+    const state = userStates.get(userId) || {};
+    state.privacy_agreed = true;
+    userStates.set(userId, state);
+    await requestContact(ctx, userId, userStates);
     return;
   }
+
+  // Возврат к подтверждению (без согласия)
+  if (data === 'back_to_confirmation') {
+    console.log(`⬅️ Возврат к подтверждению`);
+    const state = userStates.get(userId);
+    if (state && state.booking_time) {
+      await showBookingConfirmation(ctx, userId, userStates, state.booking_time);
+    } else {
+      await showWelcome(ctx, userId, userStates);
+    }
+    return;
+  }
+
   // Заглушка для категорий (не кликабельные)
   if (data === 'noop') {
     return;
@@ -163,6 +183,36 @@ bot.on('message_created', async (ctx) => {
 
   if (text.startsWith('/')) return;
   if (!userId) return;
+
+  // Проверяем, есть ли контакт в сообщении
+  const contactAttachment = ctx.message?.body?.attachments?.find((att) => att.type === 'contact');
+
+  if (contactAttachment) {
+    console.log(`📱 Получен контакт`);
+
+    // Используем contactInfo из API
+    const contactInfo = ctx.contactInfo;
+
+    if (contactInfo) {
+      console.log(`📱 Контакт:`, contactInfo);
+
+      const state = userStates.get(userId);
+      if (state && state.privacy_agreed) {
+        // Извлекаем имя и телефон из vCard
+        const name = contactInfo.tel?.name || 'Клиент';
+        const phone = contactInfo.tel?.valueOf() || '';
+
+        // Сохраняем контакт в состоянии
+        state.client_name = name;
+        state.client_phone = phone;
+        userStates.set(userId, state);
+
+        // Создаём запись
+        await confirmBooking(ctx, userId, userStates);
+        return;
+      }
+    }
+  }
 
   await ctx.reply('Я понимаю только команды из меню. Выберите действие:', {
     attachments: [
