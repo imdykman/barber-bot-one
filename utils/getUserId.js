@@ -1,7 +1,7 @@
 function getUserId(ctx) {
-  // Для callback
-  if (ctx.callback?.sender?.user_id) {
-    return ctx.callback.sender.user_id;
+  // Для callback - пользователь в callback.user (не sender!)
+  if (ctx.callback?.user?.user_id) {
+    return ctx.callback.user.user_id;
   }
   // Для сообщений
   if (ctx.message?.sender?.user_id) {
