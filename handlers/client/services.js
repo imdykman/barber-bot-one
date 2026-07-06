@@ -30,29 +30,10 @@ async function showServices(ctx, userId, userStates, masterId) {
   state.master_name = master.name;
   userStates.set(userId, state);
 
-  // Группируем услуги по категориям
-  const categories = {};
-  services.forEach((service) => {
-    if (!categories[service.category]) {
-      categories[service.category] = [];
-    }
-    categories[service.category].push(service);
-  });
-
-  // Формируем кнопки услуг
-  const serviceButtons = [];
-
-  for (const [category, categoryServices] of Object.entries(categories)) {
-    // Заголовок категории
-    serviceButtons.push([Keyboard.button.callback(`── ${category} ──`, 'noop')]);
-
-    // Услуги в категории
-    categoryServices.forEach((service) => {
-      serviceButtons.push([
-        Keyboard.button.callback(`${service.name} — ${service.price} ₽`, `service_${service.id}`),
-      ]);
-    });
-  }
+  // Формируем кнопки услуг (без категорий)
+  const serviceButtons = services.map((service) => [
+    Keyboard.button.callback(`${service.name} — ${service.price} ₽`, `service_${service.id}`),
+  ]);
 
   // Кнопка "Назад"
   serviceButtons.push([

@@ -126,10 +126,6 @@ bot.on('message_callback', async (ctx) => {
     return;
   }
 
-  // Заглушка для категорий (не кликабельные)
-  if (data === 'noop') {
-    return;
-  }
   // Мои записи
   if (data === 'my_bookings') {
     console.log(`📋 Запрос моих записей`);
