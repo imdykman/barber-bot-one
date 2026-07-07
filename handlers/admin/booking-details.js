@@ -298,8 +298,16 @@ async function applyReschedule(ctx, userId, newTime) {
   );
 
   console.log(
-    `✅ Запись #${bookingId} перенесена на ${newDate} ${newTime}, клиент ${booking.client_name} уведомлён`
+    `✅ Запись #${bookingId} перенесена на ${newDate} ${newTime}, 
+    клиент ${booking.client_name} уведомлён`
   );
+  // Отправляем email админу об изменении статуса
+  try {
+    const { notifyBookingStatusChange } = require('../../services/email');
+    await notifyBookingStatusChange(booking, booking.status, newStatus);
+  } catch (error) {
+    console.error('❌ Ошибка отправки email об изменении статуса:', error.message);
+  }
 }
 
 module.exports = {

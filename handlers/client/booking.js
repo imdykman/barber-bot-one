@@ -171,8 +171,22 @@ async function confirmBooking(ctx, userId, userStates) {
     );
 
     console.log(
-      `✅ Запись создана: ID ${booking.id}, клиент ${client.name} (${client.phone}), мастер ${master.name}, ${state.booking_date} ${state.booking_time}`
+      `✅ Запись создана: ID ${booking.id}, 
+      клиент ${client.name} (${client.phone}), 
+      мастер ${master.name}, ${state.booking_date} ${state.booking_time}`
     );
+    // Отправляем email админу
+    try {
+      const { notifyNewBooking } = require('../../services/email');
+      const bookingWithDetails = require('../../database/database').getBookingWithClient(
+        booking.id
+      );
+      if (bookingWithDetails) {
+        await notifyNewBooking(bookingWithDetails);
+      }
+    } catch (error) {
+      console.error('❌ Ошибка отправки email о новой записи:', error.message);
+    }
   } catch (error) {
     console.error('❌ Ошибка создания записи:', error);
 

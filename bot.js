@@ -54,7 +54,9 @@ bot.on('message_created', async (ctx) => {
 
   await require('./routes/messages').handleMessage(ctx, text, userId, deps);
 });
-
+// ========== ЗАПУСК ПЛАНИРОВЩИКА НАПОМИНАНИЙ ==========
+const { startReminderScheduler } = require('./services/reminders');
+startReminderScheduler(bot);
 // ========== ЗАПУСК ==========
 bot.start();
 console.log('\n' + '='.repeat(50));
