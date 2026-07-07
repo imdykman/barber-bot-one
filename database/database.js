@@ -569,6 +569,63 @@ function updateBookingStatus(bookingId, status) {
     .run(status, bookingId);
   return result.changes > 0;
 }
+function getAllBookings(filters = {}) {
+  let query = `
+    SELECT b.*, 
+           s.name as service_name, 
+           m.name as master_name, 
+           br.name as branch_name,
+           c.name as client_name, 
+           c.phone as client_phone
+    FROM bookings b
+    JOIN services s ON b.service_id = s.id
+    JOIN masters m ON b.master_id = m.id
+    JOIN branches br ON b.branch_id = br.id
+    JOIN clients c ON b.client_id = c.id
+    WHERE 1=1
+  `;
+
+  const params = [];
+
+  // Фильтр по дате
+  if (filters.date) {
+    query += ` AND b.booking_date = ?`;
+    params.push(filters.date);
+  }
+
+  // Фильтр по мастеру
+  if (filters.master_id) {
+    query += ` AND b.master_id = ?`;
+    params.push(filters.master_id);
+  }
+
+  // Фильтр по филиалу
+  if (filters.branch_id) {
+    query += ` AND b.branch_id = ?`;
+    params.push(filters.branch_id);
+  }
+
+  // Фильтр по статусу
+  if (filters.status) {
+    query += ` AND b.status = ?`;
+    params.push(filters.status);
+  }
+
+  // Поиск по имени или телефону
+  if (filters.search) {
+    query += ` AND (c.name LIKE ? OR c.phone LIKE ?)`;
+    const searchPattern = `%${filters.search}%`;
+    params.push(searchPattern, searchPattern);
+  }
+
+  query += ` ORDER BY b.booking_date DESC, b.booking_time DESC LIMIT 50`;
+
+  return db.prepare(query).all(...params);
+}
+
+function getMasters() {
+  return db.prepare(`SELECT * FROM masters ORDER BY name`).all();
+}
 module.exports = {
   db,
   getBranches,
@@ -588,4 +645,6 @@ module.exports = {
   getBookingsByDate,
   getStats,
   updateBookingStatus,
+  getAllBookings,
+  getMasters,
 };

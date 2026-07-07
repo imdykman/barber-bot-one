@@ -24,6 +24,7 @@ const { isAdmin } = require('./utils/isAdmin');
 const { showAdminMenu } = require('./handlers/admin/index');
 const { showTodayBookings } = require('./handlers/admin/today-bookings');
 const { showStats } = require('./handlers/admin/stats');
+const { showAllBookings } = require('./handlers/admin/all-bookings');
 
 // ========== СОЗДАНИЕ БОТА ==========
 const BOT_TOKEN = process.env.MAX_BOT_API_TOKEN;
@@ -211,7 +212,191 @@ bot.on('message_callback', async (ctx) => {
     );
     return;
   }
+  // Все записи
+  if (data === 'admin_all_bookings') {
+    if (!isAdmin(userId)) {
+      await ctx.reply('⛔ У вас нет доступа к админ-панели.');
+      return;
+    }
+    console.log(`📋 Админ: все записи`);
+    await showAllBookings(ctx, userId);
+    return;
+  }
 
+  // Фильтр по дате
+  if (data === 'admin_filter_date') {
+    if (!isAdmin(userId)) {
+      await ctx.reply('⛔ У вас нет доступа к админ-панели.');
+      return;
+    }
+    console.log(`📅 Админ: фильтр по дате`);
+
+    // Генерируем кнопки на ближайшие 7 дней
+    const dateButtons = [];
+    for (let i = 0; i < 7; i++) {
+      const date = new Date();
+      date.setDate(date.getDate() + i);
+      const dateStr = date.toISOString().split('T')[0];
+      const displayDate = date.toLocaleDateString('ru-RU', {
+        day: 'numeric',
+        month: 'short',
+        weekday: 'short',
+      });
+      dateButtons.push([Keyboard.button.callback(displayDate, `admin_date_${dateStr}`)]);
+    }
+
+    const keyboard = Keyboard.inlineKeyboard([
+      ...dateButtons,
+      [Keyboard.button.callback('⬅️ Назад', 'admin_all_bookings')],
+    ]);
+
+    await ctx.reply('📅 Выберите дату:', { attachments: [keyboard] });
+    return;
+  }
+
+  // Обработка выбранной даты
+  if (data.startsWith('admin_date_')) {
+    if (!isAdmin(userId)) {
+      await ctx.reply('⛔ У вас нет доступа к админ-панели.');
+      return;
+    }
+    const date = data.replace('admin_date_', '');
+    console.log(`📅 Админ: фильтр по дате ${date}`);
+    await showAllBookings(ctx, userId, { date });
+    return;
+  }
+
+  // Фильтр по мастеру
+  if (data === 'admin_filter_master') {
+    if (!isAdmin(userId)) {
+      await ctx.reply('⛔ У вас нет доступа к админ-панели.');
+      return;
+    }
+    console.log(`💇 Админ: фильтр по мастеру`);
+
+    const { getMasters } = require('./database/database');
+    const masters = getMasters();
+
+    const masterButtons = masters.map((master) => [
+      Keyboard.button.callback(master.name, `admin_master_${master.id}`),
+    ]);
+
+    const keyboard = Keyboard.inlineKeyboard([
+      ...masterButtons,
+      [Keyboard.button.callback('⬅️ Назад', 'admin_all_bookings')],
+    ]);
+
+    await ctx.reply('💇 Выберите мастера:', { attachments: [keyboard] });
+    return;
+  }
+
+  // Обработка выбранного мастера
+  if (data.startsWith('admin_master_')) {
+    if (!isAdmin(userId)) {
+      await ctx.reply('⛔ У вас нет доступа к админ-панели.');
+      return;
+    }
+    const masterId = data.replace('admin_master_', '');
+    console.log(`💇 Админ: фильтр по мастеру ${masterId}`);
+    await showAllBookings(ctx, userId, { master_id: masterId });
+    return;
+  }
+
+  // Фильтр по филиалу
+  if (data === 'admin_filter_branch') {
+    if (!isAdmin(userId)) {
+      await ctx.reply('⛔ У вас нет доступа к админ-панели.');
+      return;
+    }
+    console.log(`🏢 Админ: фильтр по филиалу`);
+
+    const { getBranches } = require('./database/database');
+    const branches = getBranches();
+
+    const branchButtons = branches.map((branch) => [
+      Keyboard.button.callback(branch.name, `admin_branch_${branch.id}`),
+    ]);
+
+    const keyboard = Keyboard.inlineKeyboard([
+      ...branchButtons,
+      [Keyboard.button.callback('⬅️ Назад', 'admin_all_bookings')],
+    ]);
+
+    await ctx.reply('🏢 Выберите филиал:', { attachments: [keyboard] });
+    return;
+  }
+
+  // Обработка выбранного филиала
+  if (data.startsWith('admin_branch_')) {
+    if (!isAdmin(userId)) {
+      await ctx.reply('⛔ У вас нет доступа к админ-панели.');
+      return;
+    }
+    const branchId = data.replace('admin_branch_', '');
+    console.log(`🏢 Админ: фильтр по филиалу ${branchId}`);
+    await showAllBookings(ctx, userId, { branch_id: branchId });
+    return;
+  }
+
+  // Фильтр по статусу
+  if (data === 'admin_filter_status') {
+    if (!isAdmin(userId)) {
+      await ctx.reply('⛔ У вас нет доступа к админ-панели.');
+      return;
+    }
+    console.log(`📌 Админ: фильтр по статусу`);
+
+    const keyboard = Keyboard.inlineKeyboard([
+      [Keyboard.button.callback('✅ Подтверждено', 'admin_status_confirmed')],
+      [Keyboard.button.callback('❌ Отменено', 'admin_status_cancelled')],
+      [Keyboard.button.callback('⏳ Ожидает', 'admin_status_pending')],
+      [Keyboard.button.callback('⬅️ Назад', 'admin_all_bookings')],
+    ]);
+
+    await ctx.reply('📌 Выберите статус:', { attachments: [keyboard] });
+    return;
+  }
+
+  // Обработка выбранного статуса
+  if (data.startsWith('admin_status_')) {
+    if (!isAdmin(userId)) {
+      await ctx.reply('⛔ У вас нет доступа к админ-панели.');
+      return;
+    }
+    const status = data.replace('admin_status_', '');
+    console.log(`📌 Админ: фильтр по статусу ${status}`);
+    await showAllBookings(ctx, userId, { status });
+    return;
+  }
+
+  // Поиск по имени/телефону
+  if (data === 'admin_filter_search') {
+    if (!isAdmin(userId)) {
+      await ctx.reply('⛔ У вас нет доступа к админ-панели.');
+      return;
+    }
+    console.log(`🔎 Админ: поиск по имени/телефону`);
+
+    // Устанавливаем состояние ожидания ввода
+    const state = userStates.get(userId) || {};
+    state.admin_search_mode = true;
+    userStates.set(userId, state);
+
+    await ctx.reply(
+      `🔎 *Поиск по имени или телефону*\n\n` +
+        `Введите имя клиента или номер телефона:\n\n` +
+        `Примеры:\n` +
+        `  • Иван\n` +
+        `  • +79091234567\n` +
+        `  • 9091234567`,
+      {
+        attachments: [
+          Keyboard.inlineKeyboard([[Keyboard.button.callback('❌ Отмена', 'admin_all_bookings')]]),
+        ],
+      }
+    );
+    return;
+  }
   // По умолчанию — назад в меню
   await ctx.reply('Команда не распознана.', {
     attachments: [
@@ -226,27 +411,39 @@ bot.on('message_created', async (ctx) => {
   const userId = getUserId(ctx);
 
   console.log(`\n📩 СООБЩЕНИЕ: "${text}" | userId: ${userId}`);
-  // Команда /admin (должна быть ПЕРЕД проверкой startsWith('/'))
+
+  if (!userId) return;
+
+  // ========== ПОИСК В АДМИНКЕ ==========
+  const state = userStates.get(userId);
+  if (state?.admin_search_mode && isAdmin(userId)) {
+    console.log(`🔎 Админ: поиск "${text}"`);
+    state.admin_search_mode = false;
+    userStates.set(userId, state);
+    await showAllBookings(ctx, userId, { search: text });
+    return;
+  }
+
+  // ========== КОМАНДА /admin ==========
   if (text === '/admin') {
     if (!isAdmin(userId)) {
       await ctx.reply('⛔ У вас нет доступа к админ-панели.');
       return;
-      if (text.startsWith('/')) return;
-      if (!userId) return;
     }
     console.log(`🔐 Вход в админку: ${userId}`);
     await showAdminMenu(ctx, userId);
     return;
   }
+
   // Остальные команды игнорируем
   if (text.startsWith('/')) return;
-  // Проверяем, есть ли контакт в сообщении
+
+  // ========== ОБРАБОТКА КОНТАКТА ==========
   const contactAttachment = ctx.message?.body?.attachments?.find((att) => att.type === 'contact');
 
   if (contactAttachment) {
     console.log(`📱 Получен контакт`);
 
-    // Используем contactInfo из API
     const contactInfo = ctx.contactInfo;
 
     if (contactInfo) {
@@ -255,19 +452,15 @@ bot.on('message_created', async (ctx) => {
       const state = userStates.get(userId);
 
       if (state && state.privacy_agreed) {
-        // Извлекаем имя и телефон
-        // tel - это строка, fullName - это имя
         const name = contactInfo.fullName || 'Клиент';
         const phone = contactInfo.tel || '';
 
         console.log(`👤 Имя: ${name}, Телефон: ${phone}`);
 
-        // Сохраняем контакт в состоянии
         state.client_name = name;
         state.client_phone = phone.startsWith('+') ? phone : `+${phone}`;
         userStates.set(userId, state);
 
-        // Создаём запись
         await confirmBooking(ctx, userId, userStates);
         return;
       } else {
