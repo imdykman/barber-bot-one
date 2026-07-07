@@ -425,6 +425,150 @@ function getBookingById(bookingId) {
     )
     .get(bookingId);
 }
+// ========== АДМИН-ПАНЕЛЬ ==========
+
+function getTodayBookings() {
+  const today = new Date().toISOString().split('T')[0];
+  return db
+    .prepare(
+      `
+    SELECT b.*, 
+           s.name as service_name, 
+           m.name as master_name, 
+           br.name as branch_name,
+           c.name as client_name, 
+           c.phone as client_phone
+    FROM bookings b
+    JOIN services s ON b.service_id = s.id
+    JOIN masters m ON b.master_id = m.id
+    JOIN branches br ON b.branch_id = br.id
+    JOIN clients c ON b.client_id = c.id
+    WHERE b.booking_date = ?
+    ORDER BY b.booking_time ASC
+  `
+    )
+    .all(today);
+}
+
+function getBookingsByDate(date) {
+  return db
+    .prepare(
+      `
+    SELECT b.*, 
+           s.name as service_name, 
+           m.name as master_name, 
+           br.name as branch_name,
+           c.name as client_name, 
+           c.phone as client_phone
+    FROM bookings b
+    JOIN services s ON b.service_id = s.id
+    JOIN masters m ON b.master_id = m.id
+    JOIN branches br ON b.branch_id = br.id
+    JOIN clients c ON b.client_id = c.id
+    WHERE b.booking_date = ?
+    ORDER BY b.booking_time ASC
+  `
+    )
+    .all(date);
+}
+
+function getStats() {
+  const today = new Date().toISOString().split('T')[0];
+  const monthStart = today.substring(0, 7) + '-01';
+
+  // Всего записей сегодня
+  const todayCount = db
+    .prepare(
+      `
+    SELECT COUNT(*) as count FROM bookings 
+    WHERE booking_date = ? AND status = 'confirmed'
+  `
+    )
+    .get(today);
+
+  // Всего записей в этом месяце
+  const monthCount = db
+    .prepare(
+      `
+    SELECT COUNT(*) as count FROM bookings 
+    WHERE booking_date >= ? AND status = 'confirmed'
+  `
+    )
+    .get(monthStart);
+
+  // Всего клиентов
+  const clientsCount = db
+    .prepare(
+      `
+    SELECT COUNT(*) as count FROM clients
+  `
+    )
+    .get();
+
+  // Топ мастеров за месяц
+  const topMasters = db
+    .prepare(
+      `
+    SELECT m.name, COUNT(b.id) as bookings_count
+    FROM bookings b
+    JOIN masters m ON b.master_id = m.id
+    WHERE b.booking_date >= ? AND b.status = 'confirmed'
+    GROUP BY m.id
+    ORDER BY bookings_count DESC
+    LIMIT 5
+  `
+    )
+    .all(monthStart);
+
+  // Топ услуг за месяц
+  const topServices = db
+    .prepare(
+      `
+    SELECT s.name, COUNT(b.id) as bookings_count
+    FROM bookings b
+    JOIN services s ON b.service_id = s.id
+    WHERE b.booking_date >= ? AND b.status = 'confirmed'
+    GROUP BY s.id
+    ORDER BY bookings_count DESC
+    LIMIT 5
+  `
+    )
+    .all(monthStart);
+
+  // Топ филиалов за месяц
+  const topBranches = db
+    .prepare(
+      `
+    SELECT br.name, COUNT(b.id) as bookings_count
+    FROM bookings b
+    JOIN branches br ON b.branch_id = br.id
+    WHERE b.booking_date >= ? AND b.status = 'confirmed'
+    GROUP BY br.id
+    ORDER BY bookings_count DESC
+  `
+    )
+    .all(monthStart);
+
+  return {
+    todayCount: todayCount.count,
+    monthCount: monthCount.count,
+    clientsCount: clientsCount.count,
+    topMasters,
+    topServices,
+    topBranches,
+  };
+}
+
+function updateBookingStatus(bookingId, status) {
+  const result = db
+    .prepare(
+      `
+    UPDATE bookings SET status = ? WHERE id = ?
+  `
+    )
+    .run(status, bookingId);
+  return result.changes > 0;
+}
 module.exports = {
   db,
   getBranches,
@@ -440,4 +584,8 @@ module.exports = {
   getPastBookingsByClient,
   cancelBooking,
   getBookingById,
+  getTodayBookings,
+  getBookingsByDate,
+  getStats,
+  updateBookingStatus,
 };

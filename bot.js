@@ -20,6 +20,10 @@ const {
   showCancelConfirmation,
   confirmCancelBooking,
 } = require('./handlers/client/my-bookings');
+const { isAdmin } = require('./utils/isAdmin');
+const { showAdminMenu } = require('./handlers/admin/index');
+const { showTodayBookings } = require('./handlers/admin/today-bookings');
+const { showStats } = require('./handlers/admin/stats');
 
 // ========== СОЗДАНИЕ БОТА ==========
 const BOT_TOKEN = process.env.MAX_BOT_API_TOKEN;
@@ -51,7 +55,37 @@ bot.on('message_callback', async (ctx) => {
   console.log(`\n🔘 КНОПКА: ${data} | userId: ${userId}`);
 
   if (!userId) return;
+  // Админ-меню
+  if (data === 'admin_menu') {
+    if (!isAdmin(userId)) {
+      await ctx.reply('⛔ У вас нет доступа к админ-панели.');
+      return;
+    }
+    await showAdminMenu(ctx, userId);
+    return;
+  }
 
+  // Записи на сегодня
+  if (data === 'admin_today') {
+    if (!isAdmin(userId)) {
+      await ctx.reply('⛔ У вас нет доступа к админ-панели.');
+      return;
+    }
+    console.log(`📅 Админ: записи на сегодня`);
+    await showTodayBookings(ctx, userId);
+    return;
+  }
+
+  // Статистика
+  if (data === 'admin_stats') {
+    if (!isAdmin(userId)) {
+      await ctx.reply('⛔ У вас нет доступа к админ-панели.');
+      return;
+    }
+    console.log(`📊 Админ: статистика`);
+    await showStats(ctx, userId);
+    return;
+  }
   // Возврат в главное меню
   if (data === 'start') {
     await showWelcome(ctx, userId, userStates);
@@ -192,10 +226,20 @@ bot.on('message_created', async (ctx) => {
   const userId = getUserId(ctx);
 
   console.log(`\n📩 СООБЩЕНИЕ: "${text}" | userId: ${userId}`);
-
+  // Команда /admin (должна быть ПЕРЕД проверкой startsWith('/'))
+  if (text === '/admin') {
+    if (!isAdmin(userId)) {
+      await ctx.reply('⛔ У вас нет доступа к админ-панели.');
+      return;
+      if (text.startsWith('/')) return;
+      if (!userId) return;
+    }
+    console.log(`🔐 Вход в админку: ${userId}`);
+    await showAdminMenu(ctx, userId);
+    return;
+  }
+  // Остальные команды игнорируем
   if (text.startsWith('/')) return;
-  if (!userId) return;
-
   // Проверяем, есть ли контакт в сообщении
   const contactAttachment = ctx.message?.body?.attachments?.find((att) => att.type === 'contact');
 
