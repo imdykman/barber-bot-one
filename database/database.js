@@ -631,12 +631,15 @@ function getBookingWithClient(bookingId) {
     .prepare(
       `
     SELECT b.*, 
-           s.name as service_name, s.price as service_price, s.duration_minutes,
+           s.name as service_name, 
+           ms.price as service_price, 
+           ms.duration_minutes,
            m.name as master_name, 
            br.name as branch_name, br.address as branch_address,
            c.name as client_name, c.phone as client_phone, c.user_id as client_user_id
     FROM bookings b
     JOIN services s ON b.service_id = s.id
+    JOIN master_services ms ON ms.service_id = s.id AND ms.master_id = b.master_id
     JOIN masters m ON b.master_id = m.id
     JOIN branches br ON b.branch_id = br.id
     JOIN clients c ON b.client_id = c.id
