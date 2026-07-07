@@ -626,6 +626,91 @@ function getAllBookings(filters = {}) {
 function getMasters() {
   return db.prepare(`SELECT * FROM masters ORDER BY name`).all();
 }
+function getBookingWithClient(bookingId) {
+  return db
+    .prepare(
+      `
+    SELECT b.*, 
+           s.name as service_name, s.price as service_price, s.duration_minutes,
+           m.name as master_name, 
+           br.name as branch_name, br.address as branch_address,
+           c.name as client_name, c.phone as client_phone, c.user_id as client_user_id
+    FROM bookings b
+    JOIN services s ON b.service_id = s.id
+    JOIN masters m ON b.master_id = m.id
+    JOIN branches br ON b.branch_id = br.id
+    JOIN clients c ON b.client_id = c.id
+    WHERE b.id = ?
+  `
+    )
+    .get(bookingId);
+}
+
+function updateBookingDateTime(bookingId, newDate, newTime) {
+  const result = db
+    .prepare(
+      `
+    UPDATE bookings 
+    SET booking_date = ?, booking_time = ?
+    WHERE id = ? AND status = 'confirmed'
+  `
+    )
+    .run(newDate, newTime, bookingId);
+  return result.changes > 0;
+}
+
+function getFreeSlotsForReschedule(masterId, serviceId, date, excludeBookingId = null) {
+  const service = db.prepare('SELECT duration_minutes FROM services WHERE id = ?').get(serviceId);
+  if (!service) return [];
+
+  const duration = service.duration_minutes;
+
+  // Получаем все записи мастера на эту дату (кроме текущей)
+  let query = `
+    SELECT booking_time FROM bookings
+    WHERE master_id = ? AND booking_date = ? AND status = 'confirmed'
+  `;
+  const params = [masterId, date];
+
+  if (excludeBookingId) {
+    query += ` AND id != ?`;
+    params.push(excludeBookingId);
+  }
+
+  const bookedSlots = db.prepare(query).all(...params);
+  const bookedTimes = bookedSlots.map((b) => b.booking_time);
+
+  // Генерируем все возможные слоты (с 10:00 до 20:00)
+  const allSlots = [];
+  for (let hour = 10; hour < 20; hour++) {
+    for (let min = 0; min < 60; min += 30) {
+      const time = `${String(hour).padStart(2, '0')}:${String(min).padStart(2, '0')}`;
+
+      // Проверяем, не пересекается ли с занятыми
+      const [h, m] = time.split(':').map(Number);
+      const startMinutes = h * 60 + m;
+      const endMinutes = startMinutes + duration;
+
+      let conflict = false;
+      for (const booked of bookedTimes) {
+        const [bh, bm] = booked.split(':').map(Number);
+        const bookedStart = bh * 60 + bm;
+        const bookedEnd = bookedStart + duration;
+
+        if (startMinutes < bookedEnd && endMinutes > bookedStart) {
+          conflict = true;
+          break;
+        }
+      }
+
+      if (!conflict && endMinutes <= 20 * 60) {
+        allSlots.push(time);
+      }
+    }
+  }
+
+  return allSlots;
+}
 module.exports = {
   db,
   getBranches,
@@ -647,4 +732,7 @@ module.exports = {
   updateBookingStatus,
   getAllBookings,
   getMasters,
+  getBookingWithClient,
+  updateBookingDateTime,
+  getFreeSlotsForReschedule,
 };

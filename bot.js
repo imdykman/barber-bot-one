@@ -25,6 +25,13 @@ const { showAdminMenu } = require('./handlers/admin/index');
 const { showTodayBookings } = require('./handlers/admin/today-bookings');
 const { showStats } = require('./handlers/admin/stats');
 const { showAllBookings } = require('./handlers/admin/all-bookings');
+const {
+  showBookingDetails,
+  applyStatusChange,
+  startReschedule,
+  showRescheduleTime,
+  applyReschedule,
+} = require('./handlers/admin/booking-details');
 
 // ========== СОЗДАНИЕ БОТА ==========
 const BOT_TOKEN = process.env.MAX_BOT_API_TOKEN;
@@ -395,6 +402,93 @@ bot.on('message_callback', async (ctx) => {
         ],
       }
     );
+    return;
+  }
+  // Детали записи
+  if (data.startsWith('admin_booking_')) {
+    if (!isAdmin(userId)) {
+      await ctx.reply('⛔ У вас нет доступа к админ-панели.');
+      return;
+    }
+    const bookingId = parseInt(data.replace('admin_booking_', ''));
+    console.log(`📋 Админ: детали записи ${bookingId}`);
+    await showBookingDetails(ctx, userId, bookingId);
+    return;
+  }
+
+  // Подтвердить запись
+  if (data.startsWith('admin_confirm_')) {
+    if (!isAdmin(userId)) {
+      await ctx.reply('⛔ У вас нет доступа к админ-панели.');
+      return;
+    }
+    const bookingId = parseInt(data.replace('admin_confirm_', ''));
+    console.log(`✅ Админ: подтверждение записи ${bookingId}`);
+    await applyStatusChange(ctx, userId, bookingId, 'confirmed');
+    return;
+  }
+
+  // Отменить запись
+  if (data.startsWith('admin_cancel_')) {
+    if (!isAdmin(userId)) {
+      await ctx.reply('⛔ У вас нет доступа к админ-панели.');
+      return;
+    }
+    const bookingId = parseInt(data.replace('admin_cancel_', ''));
+    console.log(`❌ Админ: отмена записи ${bookingId}`);
+    await applyStatusChange(ctx, userId, bookingId, 'cancelled');
+    return;
+  }
+
+  // Завершить запись
+  if (data.startsWith('admin_complete_')) {
+    if (!isAdmin(userId)) {
+      await ctx.reply('⛔ У вас нет доступа к админ-панели.');
+      return;
+    }
+    const bookingId = parseInt(data.replace('admin_complete_', ''));
+    console.log(`✓ Админ: завершение записи ${bookingId}`);
+    await applyStatusChange(ctx, userId, bookingId, 'completed');
+    return;
+  }
+
+  // Перенос записи — начало
+  if (
+    data.startsWith('admin_reschedule_') &&
+    !data.includes('_date_') &&
+    !data.includes('_time_')
+  ) {
+    if (!isAdmin(userId)) {
+      await ctx.reply('⛔ У вас нет доступа к админ-панели.');
+      return;
+    }
+    const bookingId = parseInt(data.replace('admin_reschedule_', ''));
+    console.log(`📅 Админ: перенос записи ${bookingId}`);
+    await startReschedule(ctx, userId, bookingId);
+    return;
+  }
+
+  // Перенос записи — выбор даты
+  if (data.startsWith('admin_reschedule_date_')) {
+    if (!isAdmin(userId)) {
+      await ctx.reply('⛔ У вас нет доступа к админ-панели.');
+      return;
+    }
+    const date = data.replace('admin_reschedule_date_', '');
+    console.log(`📅 Админ: перенос на дату ${date}`);
+    await showRescheduleTime(ctx, userId, date);
+    return;
+  }
+
+  // Перенос записи — выбор времени
+  if (data.startsWith('admin_reschedule_time_')) {
+    if (!isAdmin(userId)) {
+      await ctx.reply('⛔ У вас нет доступа к админ-панели.');
+      return;
+    }
+    const time = data.replace('admin_reschedule_time_', '');
+    console.log(`🕐 Админ: перенос на время ${time}`);
+    await applyReschedule(ctx, userId, time);
     return;
   }
   // По умолчанию — назад в меню

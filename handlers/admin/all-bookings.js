@@ -69,13 +69,36 @@ async function showAllBookings(ctx, userId, filters = {}) {
   }
 
   // Кнопки фильтров
-  const filterButtons = [
-    [Keyboard.button.callback('📅 Фильтр по дате', 'admin_filter_date')],
-    [Keyboard.button.callback('💇 Фильтр по мастеру', 'admin_filter_master')],
-    [Keyboard.button.callback('🏢 Фильтр по филиалу', 'admin_filter_branch')],
-    [Keyboard.button.callback('📌 Фильтр по статусу', 'admin_filter_status')],
-    [Keyboard.button.callback('🔎 Поиск по имени/телефону', 'admin_filter_search')],
-  ];
+  const filterButtons = [];
+
+  // Кнопки "Подробнее" для каждой записи
+  bookings.slice(0, 10).forEach((booking) => {
+    const date = new Date(booking.booking_date);
+    const displayDate = date.toLocaleDateString('ru-RU', {
+      day: 'numeric',
+      month: 'short',
+    });
+    filterButtons.push([
+      Keyboard.button.callback(
+        `📋 ${displayDate} ${booking.booking_time} — ${booking.client_name}`,
+        `admin_booking_${booking.id}`
+      ),
+    ]);
+  });
+
+  filterButtons.push([Keyboard.button.callback('📅 Фильтр по дате', 'admin_filter_date')]);
+  filterButtons.push([Keyboard.button.callback('💇 Фильтр по мастеру', 'admin_filter_master')]);
+  filterButtons.push([Keyboard.button.callback('🏢 Фильтр по филиалу', 'admin_filter_branch')]);
+  filterButtons.push([Keyboard.button.callback('📌 Фильтр по статусу', 'admin_filter_status')]);
+  filterButtons.push([
+    Keyboard.button.callback('🔎 Поиск по имени/телефону', 'admin_filter_search'),
+  ]);
+
+  if (Object.keys(filters).length > 0) {
+    filterButtons.push([Keyboard.button.callback('🗑️ Сбросить фильтры', 'admin_all_bookings')]);
+  }
+
+  filterButtons.push([Keyboard.button.callback('⬅️ Назад в админку', 'admin_menu')]);
 
   if (Object.keys(filters).length > 0) {
     filterButtons.push([Keyboard.button.callback('🗑️ Сбросить фильтры', 'admin_all_bookings')]);
