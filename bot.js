@@ -54,6 +54,19 @@ bot.on('message_created', async (ctx) => {
 
   await require('./routes/messages').handleMessage(ctx, text, userId, deps);
 });
+// ========== АВТООЧИСТКА СТАРЫХ СОСТОЯНИЙ ==========
+const { cleanupOldStates } = require('./services/states');
+
+// Очистка при старте
+cleanupOldStates();
+
+// Периодическая очистка (каждый час)
+setInterval(
+  () => {
+    cleanupOldStates();
+  },
+  60 * 60 * 1000
+);
 // ========== ЗАПУСК ПЛАНИРОВЩИКА НАПОМИНАНИЙ ==========
 const { startReminderScheduler } = require('./services/reminders');
 startReminderScheduler(bot);
