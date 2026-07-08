@@ -19,6 +19,7 @@
   "dependencies": {
     "@maxhub/max-bot-api": "^0.2.4",
     "better-sqlite3": "^12.11.1",
-    "dotenv": "^16.0.0"
+    "dotenv": "^16.0.0",
+    "nodemailer": "^9.0.3"
   }
 }
