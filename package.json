@@ -19,7 +19,9 @@
   "dependencies": {
     "@maxhub/max-bot-api": "^0.2.4",
     "better-sqlite3": "^12.11.1",
+    "cors": "^2.8.6",
     "dotenv": "^16.0.0",
+    "express": "^5.2.1",
     "nodemailer": "^9.0.3"
   }
 }

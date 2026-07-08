@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>✂️ Ножницы&Ко — Онлайн-запись</title>
+    <link rel="stylesheet" href="/css/style.css" />
+  </head>
+  <body>
+    <header>
+      <img src="/images/logo.svg" alt="Ножницы&Ко" class="logo" />
+      <h1>Ножницы&Ко</h1>
+      <p class="subtitle">Сеть салонов красоты в Екатеринбурге</p>
+    </header>
+
+    <main>
+      <!-- Шаг 1: Выбор филиала -->
+      <div id="step-branch" class="step">
+        <h2>Выберите филиал</h2>
+        <div id="branches-list" class="cards"></div>
+      </div>
+
+      <!-- Шаг 2: Выбор мастера -->
+      <div id="step-master" class="step" style="display: none">
+        <h2>Выберите мастера</h2>
+        <div id="masters-list" class="cards"></div>
+        <button onclick="backToBranch()" class="back-btn">← Назад</button>
+      </div>
+
+      <!-- Шаг 3: Выбор услуги -->
+      <div id="step-service" class="step" style="display: none">
+        <h2>Выберите услугу</h2>
+        <div id="services-list" class="list"></div>
+        <button onclick="backToMaster()" class="back-btn">← Назад</button>
+      </div>
+
+      <!-- Шаг 4: Выбор даты -->
+      <div id="step-date" class="step" style="display: none">
+        <h2>Выберите дату</h2>
+        <div id="dates-list" class="dates"></div>
+        <button onclick="backToService()" class="back-btn">← Назад</button>
+      </div>
+
+      <!-- Шаг 5: Выбор времени -->
+      <div id="step-time" class="step" style="display: none">
+        <h2>Выберите время</h2>
+        <div id="times-list" class="times"></div>
+        <button onclick="backToDate()" class="back-btn">← Назад</button>
+      </div>
+
+      <!-- Шаг 6: Форма клиента -->
+      <div id="step-form" class="step" style="display: none">
+        <h2>Ваши данные</h2>
+        <form id="booking-form">
+          <input type="text" id="client-name" placeholder="Ваше имя" required />
+          <input type="tel" id="client-phone" placeholder="+7 (___) ___-__-__" required />
+          <button type="submit" class="submit-btn">Записаться</button>
+        </form>
+        <button onclick="backToTime()" class="back-btn">← Назад</button>
+      </div>
+
+      <!-- Шаг 7: Подтверждение -->
+      <div id="step-success" class="step" style="display: none">
+        <h2>✅ Запись подтверждена!</h2>
+        <div id="booking-details"></div>
+        <a href="/" class="home-btn">🏠 На главную</a>
+      </div>
+    </main>
+
+    <footer>
+      <p>Центральный: +7 (343) 100-10-10</p>
+      <p><a href="/privacy">Политика конфиденциальности</a></p>
+    </footer>
+
+    <script src="/js/app.js"></script>
+  </body>
+</html>
