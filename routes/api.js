@@ -52,7 +52,8 @@ router.get('/free-slots/:masterId/:serviceId/:date', (req, res) => {
     const serviceId = parseInt(req.params.serviceId);
     const date = req.params.date;
 
-    const slots = getFreeTimeSlots(masterId, serviceId, date);
+    // ✅ Правильный порядок параметров: masterId, date, serviceId
+    const slots = getFreeTimeSlots(masterId, date, serviceId);
     res.json({ success: true, data: slots });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });

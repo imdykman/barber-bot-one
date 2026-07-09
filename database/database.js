@@ -325,6 +325,7 @@ function getFreeTimeSlots(masterId, date, serviceId = null) {
 
   // Находим график для этого дня недели
   const daySchedule = schedule.find((s) => s.day_of_week === dayOfWeek);
+
   if (!daySchedule) return [];
 
   // Проверяем, не выходной ли это день
@@ -336,6 +337,7 @@ function getFreeTimeSlots(masterId, date, serviceId = null) {
   `
     )
     .get(masterId, date);
+
   if (holiday) return [];
 
   // Получаем длительность услуги (если передана)
@@ -370,9 +372,15 @@ function getFreeTimeSlots(masterId, date, serviceId = null) {
     const mins = minutes % 60;
     const timeStr = `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
 
-    // Проверяем, свободен ли слот (с учётом длительности услуги)
-    if (isTimeSlotFree(masterId, date, timeStr, durationMinutes)) {
-      slots.push(timeStr);
+    try {
+      // Проверяем, свободен ли слот (с учётом длительности услуги)
+      const isFree = isTimeSlotFree(masterId, date, timeStr, durationMinutes);
+
+      if (isFree) {
+        slots.push(timeStr);
+      }
+    } catch (error) {
+      console.error(`❌ Ошибка проверки слота ${timeStr}:`, error.message);
     }
   }
 
