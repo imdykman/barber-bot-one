@@ -67,11 +67,8 @@ async function sendReminder(bot, booking, hoursBefore) {
       `🏢 ${booking.branch_name}\n\n` +
       `Ждём вас! 💚`;
 
-    // Отправляем сообщение через MAX API
-    await bot.api.sendMessage({
-      recipient: { chat_id: booking.client_user_id },
-      body: { text: message },
-    });
+    // ✅ Правильный метод из SDK
+    await bot.api.sendMessageToUser(booking.client_user_id, message);
 
     console.log(
       `⏰ Напоминание отправлено клиенту ${booking.client_name} (за ${hoursBefore}ч до записи #${booking.id})`
