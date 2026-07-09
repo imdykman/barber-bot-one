@@ -61,21 +61,16 @@ h2 {
   padding: 20px;
   border-radius: 15px;
   cursor: pointer;
-  transition:
-    transform 0.3s ease,
-    box-shadow 0.3s ease;
   text-align: center;
-  will-change: transform;
-  transform: translateZ(0); /* Аппаратное ускорение */
+  transition: background 0.3s ease;
+  /* Убираем все transform */
 }
 
 .card:hover {
-  transform: translateY(-5px) translateZ(0);
-  box-shadow: 0 15px 30px rgba(0, 0, 0, 0.3);
+  background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+  /* Только смена градиента */
 }
-.card:active {
-  transform: translateY(-2px) translateZ(0);
-}
+
 .card img {
   width: 100px;
   height: 100px;
@@ -83,6 +78,7 @@ h2 {
   border: 3px solid white;
   margin-bottom: 10px;
   object-fit: cover;
+  pointer-events: none; /* ← Изображение не перехватывает клики */
 }
 
 .card h3 {
@@ -101,24 +97,16 @@ h2 {
   margin-bottom: 10px;
   border-radius: 10px;
   cursor: pointer;
-  transition:
-    background 0.2s ease,
-    transform 0.2s ease;
+  transition: background 0.2s ease;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  will-change: background;
-  transform: translateZ(0);
+  /* Убираем transform и will-change */
 }
 
 .list-item:hover {
   background: #e9ecef;
-  transform: translateX(5px) translateZ(0);
-}
-
-.list-item:active {
-  background: #dee2e6;
-  transform: translateX(3px) translateZ(0);
+  /* Только смена цвета */
 }
 
 .list-item .price {
