@@ -12,7 +12,7 @@ async function showTimeSlots(ctx, userId, userStates, dateStr) {
   }
 
   // Получаем свободные слоты
-  const freeSlots = getFreeTimeSlots(state.master_id, dateStr);
+  const freeSlots = getFreeTimeSlots(state.master_id, dateStr, state.service_id);
 
   // Форматируем дату для отображения
   const date = new Date(dateStr);

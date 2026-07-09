@@ -319,7 +319,7 @@ function isTimeSlotFree(masterId, date, time, durationMinutes) {
 }
 
 // Получить свободные слоты мастера на дату
-function getFreeTimeSlots(masterId, date) {
+function getFreeTimeSlots(masterId, date, serviceId = null) {
   const schedule = getMasterSchedule(masterId);
   const dayOfWeek = new Date(date).getDay(); // 0 = воскресенье, 6 = суббота
 
@@ -338,6 +338,21 @@ function getFreeTimeSlots(masterId, date) {
     .get(masterId, date);
   if (holiday) return [];
 
+  // Получаем длительность услуги (если передана)
+  let durationMinutes = 60; // По умолчанию
+  if (serviceId) {
+    const service = getService(serviceId);
+    if (service) {
+      durationMinutes = service.duration_minutes;
+    }
+  }
+
+  // Проверяем, является ли дата сегодняшней
+  const today = new Date();
+  const todayStr = today.toISOString().split('T')[0];
+  const isToday = date === todayStr;
+  const currentMinutes = today.getHours() * 60 + today.getMinutes();
+
   // Генерируем слоты с шагом 30 минут
   const slots = [];
   const [startH, startM] = daySchedule.start_time.split(':').map(Number);
@@ -346,12 +361,17 @@ function getFreeTimeSlots(masterId, date) {
   const endMinutes = endH * 60 + endM;
 
   for (let minutes = startMinutes; minutes < endMinutes; minutes += 30) {
+    // Если сегодня — пропускаем прошедшие слоты
+    if (isToday && minutes <= currentMinutes) {
+      continue;
+    }
+
     const hours = Math.floor(minutes / 60);
     const mins = minutes % 60;
     const timeStr = `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
 
-    // Проверяем, свободен ли слот (минимум 60 минут до конца рабочего дня)
-    if (isTimeSlotFree(masterId, date, timeStr, 60)) {
+    // Проверяем, свободен ли слот (с учётом длительности услуги)
+    if (isTimeSlotFree(masterId, date, timeStr, durationMinutes)) {
       slots.push(timeStr);
     }
   }

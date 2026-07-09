@@ -10,11 +10,11 @@ async function showCalendar(ctx, userId, userStates) {
     return;
   }
 
-  // Генерируем даты на 7 дней вперёд
+  // Генерируем даты на 7 дней вперёд (включая сегодня)
   const dates = [];
   const today = new Date();
 
-  for (let i = 1; i <= 7; i++) {
+  for (let i = 0; i <= 7; i++) {
     const date = new Date(today);
     date.setDate(today.getDate() + i);
 
@@ -26,7 +26,7 @@ async function showCalendar(ctx, userId, userStates) {
       dateStr: date.toISOString().split('T')[0], // YYYY-MM-DD
       displayDate: date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' }),
       dayOfWeek: date.toLocaleDateString('ru-RU', { weekday: 'long' }),
-      isToday: i === 1,
+      isToday: i === 0,
     });
   }
 
