@@ -56,7 +56,8 @@ async function loadMasters(branchId) {
         .map(
           (master) => `
         <div class="card" onclick="selectMaster(${master.id})">
-          <img src="/images/masters/${master.id}.jpg" onerror="this.src='/images/default-master.jpg'">
+          <img src="/images/masters/${master.id}.jpg" 
+               onerror="if(!this.dataset.error){this.dataset.error='1';this.src='/images/default-avatar.svg';}else{this.style.display='none';}">
           <h3>💇 ${master.name}</h3>
           <p>${master.specialty}</p>
         </div>
