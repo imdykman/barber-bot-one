@@ -23,8 +23,42 @@ function checkAccess(ctx, userId) {
 }
 
 async function handleCallback(ctx, data, userId, { userStates }) {
+  // Экспорт (не начинается с admin_, поэтому обрабатываем отдельно)
+  if (data === 'export_today') {
+    if (!checkAccess(ctx, userId)) return true;
+    console.log(`📥 Админ: экспорт за сегодня`);
+    const { exportBookings } = require('../handlers/admin/export');
+    await exportBookings(ctx, userId, 'today');
+    return true;
+  }
+
+  if (data === 'export_week') {
+    if (!checkAccess(ctx, userId)) return true;
+    console.log(`📥 Админ: экспорт за неделю`);
+    const { exportBookings } = require('../handlers/admin/export');
+    await exportBookings(ctx, userId, 'week');
+    return true;
+  }
+
+  if (data === 'export_month') {
+    if (!checkAccess(ctx, userId)) return true;
+    console.log(`📥 Админ: экспорт за месяц`);
+    const { exportBookings } = require('../handlers/admin/export');
+    await exportBookings(ctx, userId, 'month');
+    return true;
+  }
+
+  if (data === 'export_all') {
+    if (!checkAccess(ctx, userId)) return true;
+    console.log(`📥 Админ: экспорт всех записей`);
+    const { exportBookings } = require('../handlers/admin/export');
+    await exportBookings(ctx, userId, 'all');
+    return true;
+  }
+
   // Все админские callback начинаются с 'admin_'
   if (!data.startsWith('admin_')) return false;
+
   // Меню экспорта
   if (data === 'admin_export') {
     if (!checkAccess(ctx, userId)) return true;
@@ -33,7 +67,6 @@ async function handleCallback(ctx, data, userId, { userStates }) {
     await showExportMenu(ctx, userId);
     return true;
   }
-
   // Экспорт за сегодня
   if (data === 'export_today') {
     if (!checkAccess(ctx, userId)) return true;
