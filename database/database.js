@@ -198,29 +198,32 @@ function getMasterSchedule(masterId) {
 }
 
 // Получить или создать клиента
-function getOrCreateClient(userId, name = null, phone = null) {
-  const existing = db.prepare('SELECT * FROM clients WHERE user_id = ?').get(userId);
-  if (existing) {
-    // Обновляем данные, если они изменились
-    if ((name && !existing.name) || (phone && !existing.phone)) {
-      db.prepare(
-        `
-        UPDATE clients 
-        SET name = COALESCE(?, name), phone = COALESCE(?, phone)
-        WHERE user_id = ?
-      `
-      ).run(name, phone, userId);
-      return db.prepare('SELECT * FROM clients WHERE user_id = ?').get(userId);
+function getOrCreateClient(userId, name, phone) {
+  // Если есть userId — ищем по нему
+  if (userId) {
+    let client = db.prepare('SELECT * FROM clients WHERE user_id = ?').get(userId);
+    if (client) {
+      // Обновляем имя и телефон, если изменились
+      db.prepare('UPDATE clients SET name = ?, phone = ? WHERE id = ?').run(name, phone, client.id);
+      return client.id;
     }
-    return existing;
   }
 
-  db.prepare('INSERT INTO clients (user_id, name, phone) VALUES (?, ?, ?)').run(
-    userId,
-    name,
-    phone
-  );
-  return db.prepare('SELECT * FROM clients WHERE user_id = ?').get(userId);
+  // Если нет userId (запись админом) — ищем по телефону
+  if (phone) {
+    let client = db.prepare('SELECT * FROM clients WHERE phone = ?').get(phone);
+    if (client) {
+      // Обновляем имя, если изменилось
+      db.prepare('UPDATE clients SET name = ? WHERE id = ?').run(name, client.id);
+      return client.id;
+    }
+  }
+
+  // Создаём нового клиента
+  const result = db
+    .prepare('INSERT INTO clients (user_id, name, phone) VALUES (?, ?, ?)')
+    .run(userId || null, name, phone || null);
+  return result.lastInsertRowid;
 }
 
 // Создать запись
