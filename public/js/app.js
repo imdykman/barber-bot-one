@@ -180,41 +180,6 @@ function selectTime(time) {
   showStep('form');
 }
 
-// Отправка формы
-document.getElementById('booking-form').addEventListener('submit', async (e) => {
-  e.preventDefault();
-
-  const client_name = document.getElementById('client-name').value;
-  const client_phone = document.getElementById('client-phone').value;
-
-  try {
-    const response = await fetch('/api/bookings', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        client_name,
-        client_phone,
-        branch_id: state.branch_id,
-        master_id: state.master_id,
-        service_id: state.service_id,
-        booking_date: state.booking_date,
-        booking_time: state.booking_time,
-      }),
-    });
-
-    const { success, data, error } = await response.json();
-
-    if (success) {
-      showSuccess();
-    } else {
-      alert('Ошибка: ' + error);
-    }
-  } catch (error) {
-    console.error('Ошибка создания записи:', error);
-    alert('Произошла ошибка. Попробуйте ещё раз.');
-  }
-});
-
 // Показать успешную запись
 function showSuccess() {
   const date = new Date(state.booking_date);
