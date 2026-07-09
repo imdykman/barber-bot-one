@@ -5,6 +5,8 @@
   "main": "bot.js",
   "scripts": {
     "start": "node bot.js",
+    "web": "node server.js",
+    "dev": "concurrently \"npm start\" \"npm run web\"",
     "seed": "node data/seed.js",
     "reset": "node data/reset.js"
   },
@@ -23,5 +25,8 @@
     "dotenv": "^16.0.0",
     "express": "^5.2.1",
     "nodemailer": "^9.0.3"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.3"
   }
 }
