@@ -151,8 +151,24 @@ async function notifyBookingStatusChange(booking, oldStatus, newStatus) {
     console.error('❌ Ошибка отправки email:', error.message);
   }
 }
-
+// Отправка email с вложением (CSV)
+async function sendEmailWithAttachment(to, subject, text, attachment) {
+  try {
+    await transporter.sendMail({
+      from: process.env.SMTP_FROM || process.env.SMTP_USER,
+      to,
+      subject,
+      text,
+      attachments: [attachment],
+    });
+    console.log(`📧 Email с вложением отправлен на ${to}`);
+  } catch (error) {
+    console.error('❌ Ошибка отправки email с вложением:', error.message);
+    throw error;
+  }
+}
 module.exports = {
   notifyNewBooking,
   notifyBookingStatusChange,
+  sendEmailWithAttachment,
 };

@@ -5,6 +5,7 @@ async function showAdminMenu(ctx, userId) {
     [Keyboard.button.callback('📅 Записи на сегодня', 'admin_today')],
     [Keyboard.button.callback('📋 Все записи', 'admin_all_bookings')],
     [Keyboard.button.callback('📊 Статистика', 'admin_stats')],
+    [Keyboard.button.callback('📥 Экспорт в CSV', 'admin_export')],
     [Keyboard.button.callback('🏠 Выйти из админки', 'start')],
   ]);
 
