@@ -67,6 +67,98 @@ async function handleCallback(ctx, data, userId, { userStates }) {
     await showExportMenu(ctx, userId);
     return true;
   }
+  // Создание записи — начало
+  if (data === 'admin_create_booking') {
+    if (!checkAccess(ctx, userId)) return true;
+    console.log(`📝 Админ: создание записи`);
+
+    const { userStates } = require('../services/states');
+    userStates.set(userId, { mode: 'admin_create_booking' });
+
+    const { showBranchSelection } = require('../handlers/admin/create-booking');
+    await showBranchSelection(ctx, userId);
+    return true;
+  }
+
+  // Создание записи — выбор филиала
+  if (data.startsWith('admin_book_branch_')) {
+    if (!checkAccess(ctx, userId)) return true;
+    const branchId = parseInt(data.replace('admin_book_branch_', ''));
+    console.log(`📝 Админ: выбор филиала ${branchId}`);
+
+    const { userStates } = require('../services/states');
+    const state = userStates.get(userId) || {};
+    state.branch_id = branchId;
+    userStates.set(userId, state);
+
+    const { showMasterSelection } = require('../handlers/admin/create-booking');
+    await showMasterSelection(ctx, userId, branchId);
+    return true;
+  }
+
+  // Создание записи — выбор мастера
+  if (data.startsWith('admin_book_master_')) {
+    if (!checkAccess(ctx, userId)) return true;
+    const masterId = parseInt(data.replace('admin_book_master_', ''));
+    console.log(`📝 Админ: выбор мастера ${masterId}`);
+
+    const { userStates } = require('../services/states');
+    const state = userStates.get(userId) || {};
+    state.master_id = masterId;
+    userStates.set(userId, state);
+
+    const { showServiceSelection } = require('../handlers/admin/create-booking');
+    await showServiceSelection(ctx, userId, masterId);
+    return true;
+  }
+
+  // Создание записи — выбор услуги
+  if (data.startsWith('admin_book_service_')) {
+    if (!checkAccess(ctx, userId)) return true;
+    const serviceId = parseInt(data.replace('admin_book_service_', ''));
+    console.log(`📝 Админ: выбор услуги ${serviceId}`);
+
+    const { userStates } = require('../services/states');
+    const state = userStates.get(userId) || {};
+    state.service_id = serviceId;
+    userStates.set(userId, state);
+
+    const { showDateSelection } = require('../handlers/admin/create-booking');
+    await showDateSelection(ctx, userId);
+    return true;
+  }
+
+  // Создание записи — выбор даты
+  if (data.startsWith('admin_book_date_')) {
+    if (!checkAccess(ctx, userId)) return true;
+    const date = data.replace('admin_book_date_', '');
+    console.log(`📝 Админ: выбор даты ${date}`);
+
+    const { userStates } = require('../services/states');
+    const state = userStates.get(userId) || {};
+    state.booking_date = date;
+    userStates.set(userId, state);
+
+    const { showTimeSelection } = require('../handlers/admin/create-booking');
+    await showTimeSelection(ctx, userId, date);
+    return true;
+  }
+
+  // Создание записи — выбор времени
+  if (data.startsWith('admin_book_time_')) {
+    if (!checkAccess(ctx, userId)) return true;
+    const time = data.replace('admin_book_time_', '');
+    console.log(`📝 Админ: выбор времени ${time}`);
+
+    const { userStates } = require('../services/states');
+    const state = userStates.get(userId) || {};
+    state.booking_time = time;
+    userStates.set(userId, state);
+
+    const { showClientForm } = require('../handlers/admin/create-booking');
+    await showClientForm(ctx, userId);
+    return true;
+  }
   // Экспорт за сегодня
   if (data === 'export_today') {
     if (!checkAccess(ctx, userId)) return true;
