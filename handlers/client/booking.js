@@ -108,12 +108,16 @@ async function confirmBooking(ctx, userId, userStates) {
   }
 
   try {
+    // Логируем состояние
+    console.log('🔍 STATE перед записью:', JSON.stringify(state, null, 2));
+    console.log('🔍 client_name:', state.client_name);
+    console.log('🔍 client_phone:', state.client_phone);
     // Получаем или создаём клиента с именем и телефоном
-    const client = getOrCreateClient(userId, state.client_name, state.client_phone);
+    const clientId = getOrCreateClient(userId, state.client_name, state.client_phone);
 
     // Создаём запись
     const booking = createBooking(
-      client.id,
+      clientId,
       state.master_id,
       state.service_id,
       state.branch_id,
@@ -156,8 +160,8 @@ async function confirmBooking(ctx, userId, userStates) {
     await ctx.reply(
       `✅ *Запись подтверждена!*\n\n` +
         `━━━━━━━━━━━━━━━━━━━━━━\n\n` +
-        `👤 *Клиент:* ${client.name}\n` +
-        `📱 *Телефон:* ${client.phone}\n\n` +
+        `👤 *Клиент:* ${state.client_name}\n` +
+        `📱 *Телефон:* ${state.client_phone}\n\n` +
         `🏢 ${branch.name}\n` +
         `📍 ${branch.address}\n\n` +
         `💇 ${master.name}\n` +
@@ -172,8 +176,8 @@ async function confirmBooking(ctx, userId, userStates) {
 
     console.log(
       `✅ Запись создана: ID ${booking.id}, 
-      клиент ${client.name} (${client.phone}), 
-      мастер ${master.name}, ${state.booking_date} ${state.booking_time}`
+  клиент ${state.client_name} (${state.client_phone}), 
+  мастер ${master.name}, ${state.booking_date} ${state.booking_time}`
     );
     // Отправляем email админу
     try {
