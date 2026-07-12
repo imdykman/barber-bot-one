@@ -85,20 +85,24 @@ router.post('/bookings', async (req, res) => {
     ) {
       return res.status(400).json({ success: false, error: 'Все поля обязательны' });
     }
-
     // Создаём или получаем клиента
-    const client = getOrCreateClient(null, client_name, client_phone);
+    console.log('🔍 Создаём клиента:', { client_name, client_phone });
+    const clientId = getOrCreateClient(null, client_name, client_phone);
+    console.log('✅ Клиент создан, ID:', clientId);
+
+    if (!clientId) {
+      throw new Error('Не удалось создать клиента');
+    }
 
     // Создаём запись
     const booking = createBooking(
-      client.id,
+      clientId, // ← теперь используем clientId напрямую
       master_id,
       service_id,
       branch_id,
       booking_date,
       booking_time
     );
-
     // Отправляем email админу
     try {
       const bookingWithDetails = getBookingWithClient(booking.id);
