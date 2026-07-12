@@ -26,7 +26,13 @@ app.get('/privacy', (req, res) => {
 app.get('/offer', (req, res) => {
   res.sendFile(path.join(__dirname, 'docs', 'offer.html'));
 });
+app.get('/docs/privacy.html', (req, res) => {
+  res.sendFile(path.join(__dirname, 'docs', 'privacy.html'));
+});
 
+app.get('/docs/terms.html', (req, res) => {
+  res.sendFile(path.join(__dirname, 'docs', 'terms.html'));
+});
 // Главная страница
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
