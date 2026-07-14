@@ -4,7 +4,7 @@ module.exports = {
       name: 'barber-bot',
       script: 'bot.js',
       env: {
-        NODE_EXTRA_CA_CERTS: '/var/www/Projects/max-dialog-barber-bot/russian_trusted_root_ca.cer',
+        NODE_EXTRA_CA_CERTS: './russian_trusted_root_ca.cer',
         NODE_ENV: 'production',
       },
     },

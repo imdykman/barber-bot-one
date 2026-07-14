@@ -213,8 +213,17 @@ function getOrCreateClient(userId, name, phone) {
   if (phone) {
     let client = db.prepare('SELECT * FROM clients WHERE phone = ?').get(phone);
     if (client) {
-      // Обновляем имя, если изменилось
-      db.prepare('UPDATE clients SET name = ? WHERE id = ?').run(name, client.id);
+      // Обновляем имя И привязываем user_id (если он передан)
+      if (userId && !client.user_id) {
+        db.prepare('UPDATE clients SET name = ?, user_id = ? WHERE id = ?').run(
+          name,
+          userId,
+          client.id
+        );
+        console.log(`🔗 Привязали клиента ID ${client.id} к user_id ${userId}`);
+      } else {
+        db.prepare('UPDATE clients SET name = ? WHERE id = ?').run(name, client.id);
+      }
       return client.id;
     }
   }
