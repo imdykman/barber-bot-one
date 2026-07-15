@@ -1,5 +1,5 @@
 const { Keyboard } = require('@maxhub/max-bot-api');
-const { getMaster, getBranch, db } = require('../../database/database');
+const { getMaster, getBranch, getBookingWithClient, db } = require('../../database/database');
 
 async function showBookingConfirmation(ctx, userId, userStates, time) {
   const state = userStates.get(userId);
@@ -187,7 +187,7 @@ async function confirmBooking(ctx, userId, userStates) {
       );
       if (bookingWithDetails) {
         // Передаем userId вторым аргументом, чтобы email.js знал, что это MAX-клиент
-        await notifyNewBooking(booking, userId);
+        await notifyNewBooking(bookingWithDetails, userId);
       }
     } catch (error) {
       console.error('❌ Ошибка отправки email о новой записи:', error.message);
