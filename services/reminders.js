@@ -48,6 +48,17 @@ function getBookingsForReminder(hoursBefore) {
 
 // Отправка напоминания через MAX API
 async function sendReminder(bot, booking, hoursBefore) {
+  // 🆕 ПРОВЕРКА: если у клиента нет user_id, пропускаем отправку через бота
+  if (!booking.client_user_id) {
+    console.log(
+      `⏭️ Пропускаем напоминание для записи #${booking.id}: у клиента ${booking.client_name} нет MAX ID (админ напомнит по телефону)`
+    );
+    // Помечаем как "отправленное", чтобы не пытаться снова каждый час и не спамить логи
+    db.prepare(`UPDATE bookings SET reminder_${hoursBefore}h_sent = 1 WHERE id = ?`).run(
+      booking.id
+    );
+    return; // Выходим из функции, не доходя до bot.api.sendMessageToUser
+  }
   try {
     const date = new Date(booking.booking_date);
     const displayDate = date.toLocaleDateString('ru-RU', {

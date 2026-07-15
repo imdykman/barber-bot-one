@@ -109,7 +109,8 @@ router.post('/bookings', async (req, res) => {
       if (bookingWithDetails) {
         // Передаем null вторым аргументом, так как веб-запись не знает user_id
         // (или передайте bookingDetails.user_id, если он там есть, но null безопаснее для гарантии проверки)
-        await notifyNewBooking(bookingWithDetails, null);
+        // Передаем user_id из базы данных, если он есть. Если нет — null.
+        await notifyNewBooking(bookingWithDetails, bookingWithDetails.user_id || null);
       }
     } catch (error) {
       console.error('❌ Ошибка отправки email:', error.message);
