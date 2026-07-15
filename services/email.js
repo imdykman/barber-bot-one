@@ -12,7 +12,8 @@ const transporter = nodemailer.createTransport({
 });
 
 // Отправка email админу при новой записи
-async function notifyNewBooking(booking) {
+// Добавили второй параметр clientUserId (по умолчанию null)
+async function notifyNewBooking(booking, clientUserId = null) {
   const adminEmail = process.env.ADMIN_EMAIL;
   if (!adminEmail) {
     console.log('⚠️ ADMIN_EMAIL не указан, email не отправлен');
@@ -28,9 +29,24 @@ async function notifyNewBooking(booking) {
 
   const subject = `✂️ Новая запись: ${booking.client_name} — ${displayDate} в ${booking.booking_time}`;
 
+  // 🆕 Проверяем, есть ли у клиента MAX ID (user_id)
+  // Если берем из booking.user_id или из переданного clientUserId
+  const hasMaxId = clientUserId || booking.user_id;
+
+  // Формируем блок предупреждения, если MAX ID нет
+  const warningBlock = !hasMaxId
+    ? `<tr>
+         <td colspan="2" style="padding: 12px; border: 2px solid #ff9800; background-color: #fff3e0; color: #e65100; font-weight: bold; text-align: center; border-radius: 4px;">
+           📞 ВНИМАНИЕ: Клиент записался через веб и не имеет MAX-аккаунта.<br>
+           Не забудьте позвонить и подтвердить запись по телефону: <strong>${booking.client_phone}</strong>
+         </td>
+       </tr>`
+    : '';
+
   const html = `
     <h2>✂️ Новая запись в салоне "Ножницы&Ко"</h2>
     <table style="border-collapse: collapse; width: 100%; max-width: 600px;">
+      ${warningBlock}
       <tr>
         <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Клиент:</td>
         <td style="padding: 8px; border: 1px solid #ddd;">${booking.client_name}</td>

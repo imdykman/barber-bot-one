@@ -186,7 +186,8 @@ async function confirmBooking(ctx, userId, userStates) {
         booking.id
       );
       if (bookingWithDetails) {
-        await notifyNewBooking(bookingWithDetails);
+        // Передаем userId вторым аргументом, чтобы email.js знал, что это MAX-клиент
+        await notifyNewBooking(bookingDetails, userId);
       }
     } catch (error) {
       console.error('❌ Ошибка отправки email о новой записи:', error.message);
