@@ -673,12 +673,13 @@ function getBookingWithClient(bookingId) {
     SELECT 
       b.id, b.booking_date, b.booking_time, b.status,
       c.name as client_name, c.phone as client_phone, c.user_id,
-      m.name as master_name, s.name as service_name, s.price as service_price,
+      m.name as master_name, s.name as service_name, ms.price as service_price,
       br.name as branch_name
     FROM bookings b
     JOIN clients c ON b.client_id = c.id
     JOIN masters m ON b.master_id = m.id
     JOIN services s ON b.service_id = s.id
+    JOIN master_services ms ON b.master_id = ms.master_id AND b.service_id = ms.service_id
     JOIN branches br ON b.branch_id = br.id
     WHERE b.id = ?
   `
