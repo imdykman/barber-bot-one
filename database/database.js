@@ -672,7 +672,7 @@ function getBookingWithClient(bookingId) {
       `
     SELECT 
       b.id, b.booking_date, b.booking_time, b.status,
-      c.name as client_name, c.phone as client_phone, c.user_id,  // <-- ДОБАВИТЬ c.user_id
+      c.name as client_name, c.phone as client_phone, c.user_id,
       m.name as master_name, s.name as service_name, s.price as service_price,
       br.name as branch_name
     FROM bookings b
