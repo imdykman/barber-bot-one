@@ -96,19 +96,25 @@ router.post('/bookings', async (req, res) => {
 
     // Создаём запись
     const booking = createBooking(
-      clientId, // ← теперь используем clientId напрямую
+      clientId,
       master_id,
       service_id,
       branch_id,
       booking_date,
       booking_time
     );
+
     // Отправляем email админу
     try {
       const bookingWithDetails = getBookingWithClient(booking.id);
+
+      // 🆕 ДОБАВЛЕНЫ ЭТИ ДВЕ СТРОКИ ДЛЯ ОТЛАДКИ:
+      console.log('🔍 [DEBUG] Данные из БД для письма:', {
+        phone: bookingWithDetails?.client_phone,
+        user_id: bookingWithDetails?.user_id,
+      });
+
       if (bookingWithDetails) {
-        // Передаем null вторым аргументом, так как веб-запись не знает user_id
-        // (или передайте bookingDetails.user_id, если он там есть, но null безопаснее для гарантии проверки)
         // Передаем user_id из базы данных, если он есть. Если нет — null.
         await notifyNewBooking(bookingWithDetails, bookingWithDetails.user_id || null);
       }
