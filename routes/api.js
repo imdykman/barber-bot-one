@@ -108,12 +108,6 @@ router.post('/bookings', async (req, res) => {
     try {
       const bookingWithDetails = getBookingWithClient(booking.id);
 
-      // 🆕 ДОБАВЛЕНЫ ЭТИ ДВЕ СТРОКИ ДЛЯ ОТЛАДКИ:
-      console.log('🔍 [DEBUG] Данные из БД для письма:', {
-        phone: bookingWithDetails?.client_phone,
-        user_id: bookingWithDetails?.user_id,
-      });
-
       if (bookingWithDetails) {
         // Передаем user_id из базы данных, если он есть. Если нет — null.
         await notifyNewBooking(bookingWithDetails, bookingWithDetails.user_id || null);
