@@ -458,7 +458,10 @@ async function handleCallback(ctx, data, userId, { userStates }) {
     await showMastersList(ctx);
     return true;
   }
-  if (data.startsWith('master_') && !data.startsWith('master_toggle_')) {
+  if (data.startsWith('master_') && !data.startsWith('toggle_master_')) {
+    // 🆕 ВАЖНО: Если это не админ, пропускаем callback, чтобы его обработал клиентский роутер!
+    if (!isAdmin(userId)) return false;
+
     const masterId = parseInt(data.replace('master_', ''));
     await showMasterDetails(ctx, masterId);
     return true;
@@ -474,7 +477,10 @@ async function handleCallback(ctx, data, userId, { userStates }) {
     await showServicesList(ctx);
     return true;
   }
-  if (data.startsWith('service_') && !data.startsWith('service_toggle_')) {
+  if (data.startsWith('service_') && !data.startsWith('toggle_service_')) {
+    // 🆕 ВАЖНО: Если это не админ, пропускаем callback, чтобы его обработал клиентский роутер!
+    if (!isAdmin(userId)) return false;
+
     const serviceId = parseInt(data.replace('service_', ''));
     await showServiceDetails(ctx, serviceId);
     return true;
