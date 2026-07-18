@@ -490,10 +490,10 @@ async function handleCallback(ctx, data, userId, { userStates }) {
     await startAddMaster(ctx, userId, userStates);
     return true;
   }
-  if (data.startsWith('add_master_branch_')) {
+  if (data.startsWith('admin_add_master_branch_')) {
     console.log(`🔍 [DEBUG] Перехвачен callback: ${data}`);
     if (!checkAccess(ctx, userId)) return true;
-    const branchId = parseInt(data.replace('add_master_branch_', ''));
+    const branchId = parseInt(data.replace('admin_add_master_branch_', ''));
     await handleAddMasterBranch(ctx, userId, branchId, userStates);
     return true;
   }

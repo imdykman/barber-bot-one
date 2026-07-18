@@ -40,7 +40,7 @@ async function handleMessage(ctx, text, userId, { userStates, getUserId }) {
       const { Keyboard } = require('@maxhub/max-bot-api');
       const branches = getBranches();
       const buttons = branches.map((b) => [
-        Keyboard.button.callback(b.name, `add_master_branch_${b.id}`),
+        Keyboard.button.callback(b.name, `admin_add_master_branch_${b.id}`),
       ]);
 
       await ctx.reply('🏢 Выберите филиал для мастера:', {
@@ -126,7 +126,7 @@ async function handleMessage(ctx, text, userId, { userStates, getUserId }) {
       const { Keyboard } = require('@maxhub/max-bot-api');
       const branches = getBranches();
       const buttons = branches.map((b) => [
-        Keyboard.button.callback(b.name, `add_master_branch_${b.id}`),
+        Keyboard.button.callback(b.name, `admin_add_master_branch_${b.id}`),
       ]);
       await ctx.reply('🏢 Выберите филиал для мастера:', {
         attachments: [Keyboard.inlineKeyboard(buttons)],
