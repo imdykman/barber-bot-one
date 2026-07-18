@@ -5,13 +5,6 @@ const {
   getMasterById,
   getBranches,
   createMaster,
-} = require('../../database/database');
-const {
-  getMastersList,
-  toggleMasterActive,
-  getMasterById,
-  getBranches,
-  createMaster,
   getMasterServicesWithStatus,
   attachServiceToMaster,
   detachServiceFromMaster,
