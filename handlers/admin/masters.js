@@ -6,6 +6,16 @@ const {
   getBranches,
   createMaster,
 } = require('../../database/database');
+const {
+  getMastersList,
+  toggleMasterActive,
+  getMasterById,
+  getBranches,
+  createMaster,
+  getMasterServicesWithStatus,
+  attachServiceToMaster,
+  detachServiceFromMaster,
+} = require('../../database/database');
 
 // Показать список мастеров
 async function showMastersList(ctx) {
@@ -45,6 +55,7 @@ async function showMasterDetails(ctx, masterId) {
   const statusText = master.is_active ? '✅ Активен' : '❌ Неактивен (не принимает записи)';
 
   const keyboard = Keyboard.inlineKeyboard([
+    [Keyboard.button.callback('🔗 Услуги мастера', `master_services_${masterId}`)],
     [
       Keyboard.button.callback(
         master.is_active ? '🚫 Деактивировать' : '✅ Активировать',
@@ -115,11 +126,77 @@ async function handleAddMasterBranch(ctx, userId, branchId, userStates) {
     await ctx.reply(`❌ Ошибка при создании мастера: ${error.message}`);
   }
 }
+// Показать список услуг мастера (с возможностью привязать/отвязать)
+async function showMasterServices(ctx, masterId) {
+  const master = getMasterById(masterId);
+  if (!master) {
+    await ctx.reply('❌ Мастер не найден');
+    return;
+  }
 
+  const services = getMasterServicesWithStatus(masterId);
+
+  if (services.length === 0) {
+    await ctx.reply('❌ Нет доступных услуг');
+    return;
+  }
+
+  // Группируем услуги по категории
+  const grouped = {};
+  services.forEach((s) => {
+    if (!grouped[s.category]) grouped[s.category] = [];
+    grouped[s.category].push(s);
+  });
+
+  let message = `🔗 *Услуги мастера ${master.name}*\n\n`;
+  const buttons = [];
+
+  for (const category in grouped) {
+    message += `\n📂 *${category}*\n`;
+    grouped[category].forEach((s) => {
+      const status = s.is_attached ? '✅' : '⬜';
+      const priceText = s.is_attached
+        ? `${s.master_price}₽ / ${s.master_duration} мин`
+        : `${s.price_min}₽ / ${s.duration_minutes} мин`;
+      message += `${status} ${s.name} — ${priceText}\n`;
+
+      // Кнопка для переключения
+      const action = s.is_attached ? 'detach' : 'attach';
+      buttons.push([
+        Keyboard.button.callback(
+          `${status} ${s.name}`,
+          `master_service_${action}_${masterId}_${s.id}`
+        ),
+      ]);
+    });
+  }
+
+  buttons.push([Keyboard.button.callback('← Назад к мастеру', `master_${masterId}`)]);
+
+  await ctx.reply(message, {
+    attachments: [Keyboard.inlineKeyboard(buttons)],
+  });
+}
+
+// Переключить привязку услуги к мастеру
+async function handleMasterServiceToggle(ctx, masterId, serviceId, action) {
+  if (action === 'attach') {
+    attachServiceToMaster(masterId, serviceId);
+    await ctx.reply('✅ Услуга привязана к мастеру');
+  } else if (action === 'detach') {
+    detachServiceFromMaster(masterId, serviceId);
+    await ctx.reply('🔓 Услуга отвязана от мастера');
+  }
+
+  // Показываем обновлённый список
+  await showMasterServices(ctx, masterId);
+}
 module.exports = {
   showMastersList,
   showMasterDetails,
   handleToggleMaster,
   startAddMaster,
   handleAddMasterBranch,
+  showMasterServices,
+  handleMasterServiceToggle,
 };

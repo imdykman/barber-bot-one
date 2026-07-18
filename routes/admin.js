@@ -18,6 +18,8 @@ const {
   handleToggleMaster,
   startAddMaster,
   handleAddMasterBranch,
+  showMasterServices,
+  handleMasterServiceToggle,
 } = require('../handlers/admin/masters');
 const {
   showServicesList,
@@ -458,6 +460,26 @@ async function handleCallback(ctx, data, userId, { userStates }) {
     await showMastersList(ctx);
     return true;
   }
+  // ========== ПРИВЯЗКА УСЛУГ К МАСТЕРУ ==========
+  if (data.startsWith('master_services_')) {
+    if (!checkAccess(ctx, userId)) return true;
+    const masterId = parseInt(data.replace('master_services_', ''));
+    await showMasterServices(ctx, masterId);
+    return true;
+  }
+
+  if (data.startsWith('master_service_attach_') || data.startsWith('master_service_detach_')) {
+    if (!checkAccess(ctx, userId)) return true;
+    // Формат: master_service_attach_1_5 или master_service_detach_1_5
+    const parts = data.split('_');
+    // parts: ['master', 'service', 'attach/detach', 'masterId', 'serviceId']
+    const action = parts[2]; // attach или detach
+    const masterId = parseInt(parts[3]);
+    const serviceId = parseInt(parts[4]);
+    await handleMasterServiceToggle(ctx, masterId, serviceId, action);
+    return true;
+  }
+
   if (data.startsWith('master_') && !data.startsWith('toggle_master_')) {
     // 🆕 ВАЖНО: Если это не админ, пропускаем callback, чтобы его обработал клиентский роутер!
     if (!isAdmin(userId)) return false;

@@ -950,6 +950,65 @@ function updateService(
   `
   ).run(name, category, priceMin, priceMax, durationMinutes, description, serviceId);
 }
+// ========== СВЯЗЬ МАСТЕРОВ И УСЛУГ ==========
+
+// Получить список услуг мастера (с информацией о привязке)
+function getMasterServicesWithStatus(masterId) {
+  return db
+    .prepare(
+      `
+    SELECT 
+      s.id,
+      s.name,
+      s.category,
+      s.price_min,
+      s.price_max,
+      s.duration_minutes,
+      s.is_active,
+      ms.price as master_price,
+      ms.duration_minutes as master_duration,
+      CASE WHEN ms.id IS NOT NULL THEN 1 ELSE 0 END as is_attached
+    FROM services s
+    LEFT JOIN master_services ms ON ms.service_id = s.id AND ms.master_id = ?
+    WHERE s.is_active = 1
+    ORDER BY s.category, s.name
+  `
+    )
+    .all(masterId);
+}
+
+// Привязать услугу к мастеру (берем базовые цену и длительность из services)
+function attachServiceToMaster(masterId, serviceId) {
+  // Получаем базовые данные услуги
+  const service = db
+    .prepare('SELECT price_min, duration_minutes FROM services WHERE id = ?')
+    .get(serviceId);
+  if (!service) return false;
+
+  // Проверяем, не привязана ли уже
+  const existing = db
+    .prepare('SELECT id FROM master_services WHERE master_id = ? AND service_id = ?')
+    .get(masterId, serviceId);
+
+  if (existing) return false; // Уже привязана
+
+  db.prepare(
+    `
+    INSERT INTO master_services (master_id, service_id, price, duration_minutes)
+    VALUES (?, ?, ?, ?)
+  `
+  ).run(masterId, serviceId, service.price_min, service.duration_minutes);
+
+  return true;
+}
+
+// Отвязать услугу от мастера
+function detachServiceFromMaster(masterId, serviceId) {
+  const result = db
+    .prepare('DELETE FROM master_services WHERE master_id = ? AND service_id = ?')
+    .run(masterId, serviceId);
+  return result.changes > 0;
+}
 module.exports = {
   db,
   getBranches,
@@ -991,4 +1050,7 @@ module.exports = {
   updateMaster,
   createService,
   updateService,
+  getMasterServicesWithStatus,
+  attachServiceToMaster,
+  detachServiceFromMaster,
 };
