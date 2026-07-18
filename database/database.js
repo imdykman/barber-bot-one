@@ -1,8 +1,7 @@
 const Database = require('better-sqlite3');
 const path = require('path');
 
-// Подключаемся к БД (создастся автоматически)
-const db = new Database('database/barber.db');
+const db = require('better-sqlite3')('./database/barber-one.db');
 
 // Включаем WAL-режим для лучшей производительности
 db.pragma('journal_mode = WAL');
@@ -149,17 +148,9 @@ function getBranch(id) {
   return db.prepare('SELECT * FROM branches WHERE id = ?').get(id);
 }
 
-// Получить мастеров филиала
-function getMastersByBranch(branchId) {
-  return db
-    .prepare(
-      `
-    SELECT * FROM masters 
-    WHERE branch_id = ? AND is_active = 1
-    ORDER BY name
-  `
-    )
-    .all(branchId);
+// Получить мастеров
+function getMasters() {
+  return db.prepare('SELECT * FROM masters WHERE is_active = 1 ORDER BY name').all();
 }
 
 // Получить мастера по ID
@@ -236,17 +227,16 @@ function getOrCreateClient(userId, name, phone) {
 }
 
 // Создать запись
-function createBooking(clientId, masterId, serviceId, branchId, date, time, notes = null) {
+function createBooking(masterId, serviceId, clientName, clientPhone, date, time, userId = null) {
   const result = db
     .prepare(
       `
-    INSERT INTO bookings (client_id, master_id, service_id, branch_id, booking_date, booking_time, notes)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO bookings (master_id, service_id, client_name, client_phone, booking_date, booking_time, user_id, status)
+    VALUES (?, ?, ?, ?, ?, ?, ?, 'pending')
   `
     )
-    .run(clientId, masterId, serviceId, branchId, date, time, notes);
-
-  return db.prepare('SELECT * FROM bookings WHERE id = ?').get(result.lastInsertRowid);
+    .run(masterId, serviceId, clientName, clientPhone, date, time, userId);
+  return result.lastInsertRowid;
 }
 
 // Получить записи клиента
@@ -258,7 +248,6 @@ function getClientBookings(clientId) {
     FROM bookings b
     JOIN masters m ON b.master_id = m.id
     JOIN services s ON b.service_id = s.id
-    JOIN branches br ON b.branch_id = br.id
     WHERE b.client_id = ? AND b.status = 'confirmed'
     ORDER BY b.booking_date DESC, b.booking_time DESC
   `
@@ -292,7 +281,6 @@ function getBranchBookings(branchId, date) {
     JOIN masters m ON b.master_id = m.id
     JOIN clients c ON b.client_id = c.id
     JOIN services s ON b.service_id = s.id
-    WHERE b.branch_id = ? AND b.booking_date = ? AND b.status = 'confirmed'
     ORDER BY b.booking_time
   `
     )
@@ -425,7 +413,7 @@ function getActiveBookingsByClient(clientId) {
     FROM bookings b
     JOIN services s ON b.service_id = s.id
     JOIN masters m ON b.master_id = m.id
-    JOIN branches br ON b.branch_id = br.id
+    
     WHERE b.client_id = ? 
       AND b.booking_date >= ?
       AND b.status = 'confirmed'
@@ -444,7 +432,7 @@ function getPastBookingsByClient(clientId) {
     FROM bookings b
     JOIN services s ON b.service_id = s.id
     JOIN masters m ON b.master_id = m.id
-    JOIN branches br ON b.branch_id = br.id
+    
     WHERE b.client_id = ? 
       AND (b.booking_date < ? OR b.status = 'cancelled')
     ORDER BY b.booking_date DESC, b.booking_time DESC
@@ -475,7 +463,7 @@ function getBookingById(bookingId) {
     FROM bookings b
     JOIN services s ON b.service_id = s.id
     JOIN masters m ON b.master_id = m.id
-    JOIN branches br ON b.branch_id = br.id
+    
     WHERE b.id = ?
   `
     )
@@ -497,7 +485,7 @@ function getTodayBookings() {
     FROM bookings b
     JOIN services s ON b.service_id = s.id
     JOIN masters m ON b.master_id = m.id
-    JOIN branches br ON b.branch_id = br.id
+    
     JOIN clients c ON b.client_id = c.id
     WHERE b.booking_date = ?
     ORDER BY b.booking_time ASC
@@ -519,7 +507,7 @@ function getBookingsByDate(date) {
     FROM bookings b
     JOIN services s ON b.service_id = s.id
     JOIN masters m ON b.master_id = m.id
-    JOIN branches br ON b.branch_id = br.id
+    
     JOIN clients c ON b.client_id = c.id
     WHERE b.booking_date = ?
     ORDER BY b.booking_time ASC
@@ -597,7 +585,7 @@ function getStats() {
       `
     SELECT br.name, COUNT(b.id) as bookings_count
     FROM bookings b
-    JOIN branches br ON b.branch_id = br.id
+    
     WHERE b.booking_date >= ? AND b.status = 'confirmed'
     GROUP BY br.id
     ORDER BY bookings_count DESC
@@ -636,7 +624,7 @@ function getAllBookings(filters = {}) {
     FROM bookings b
     JOIN services s ON b.service_id = s.id
     JOIN masters m ON b.master_id = m.id
-    JOIN branches br ON b.branch_id = br.id
+    
     JOIN clients c ON b.client_id = c.id
     WHERE 1=1
   `;
@@ -696,7 +684,7 @@ function getBookingWithClient(bookingId) {
     JOIN masters m ON b.master_id = m.id
     JOIN services s ON b.service_id = s.id
     JOIN master_services ms ON b.master_id = ms.master_id AND b.service_id = ms.service_id
-    JOIN branches br ON b.branch_id = br.id
+    
     WHERE b.id = ?
   `
     )
@@ -776,25 +764,23 @@ function getMastersList() {
   return db
     .prepare(
       `
-    SELECT m.*, b.name as branch_name 
-    FROM masters m 
-    JOIN branches b ON m.branch_id = b.id 
-    ORDER BY m.is_active DESC, m.name
+    SELECT * FROM masters 
+    ORDER BY is_active DESC, name
   `
     )
     .all();
 }
 
 // Добавить нового мастера
-function createMaster(branchId, name, specialty, experience = 0, description = null) {
+function createMaster(name, specialty, experience = 0, description = '', photo_url = null) {
   const result = db
     .prepare(
       `
-    INSERT INTO masters (branch_id, name, specialty, experience, description)
-    VALUES (?, ?, ?, ?, ?)
+    INSERT INTO masters (name, specialty, experience, description, photo_url, is_active)
+    VALUES (?, ?, ?, ?, ?, 1)
   `
     )
-    .run(branchId, name, specialty, experience, description);
+    .run(name, specialty, experience, description, photo_url);
   return result.lastInsertRowid;
 }
 
@@ -823,7 +809,7 @@ function getMasterById(masterId) {
       `
     SELECT m.*, b.name as branch_name 
     FROM masters m 
-    JOIN branches b ON m.branch_id = b.id 
+    
     WHERE m.id = ?
   `
     )
@@ -900,7 +886,7 @@ function createMaster(
   const result = db
     .prepare(
       `
-    INSERT INTO masters (branch_id, name, specialty, experience, description, photo_url, is_active)
+    INSERT INTO masters (name, specialty, experience, description, photo_url, is_active)
     VALUES (?, ?, ?, ?, ?, ?, 1)
   `
     )
@@ -913,7 +899,7 @@ function updateMaster(masterId, branchId, name, specialty, experience, descripti
   db.prepare(
     `
     UPDATE masters 
-    SET branch_id = ?, name = ?, specialty = ?, experience = ?, description = ?, photo_url = ?
+    SET name = ?, specialty = ?, experience = ?, description = ?, photo_url = ?
     WHERE id = ?
   `
   ).run(branchId, name, specialty, experience, description, photo_url, masterId);
