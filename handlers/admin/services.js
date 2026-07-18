@@ -19,6 +19,7 @@ async function showServicesList(ctx) {
       ),
     ];
   });
+
   buttons.push([Keyboard.button.callback('➕ Добавить услугу', 'admin_add_service')]);
   buttons.push([Keyboard.button.callback('← Назад в админку', 'admin_menu')]);
 
@@ -71,6 +72,7 @@ async function handleToggleService(ctx, serviceId) {
   await ctx.reply('✅ Статус услуги успешно изменён');
   await showServiceDetails(ctx, serviceId);
 }
+
 // Начать добавление услуги
 async function startAddService(ctx, userId, userStates) {
   userStates.set(userId, { mode: 'admin_add_service_name' });

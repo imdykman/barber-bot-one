@@ -1,5 +1,11 @@
 const { Keyboard } = require('@maxhub/max-bot-api');
-const { getMastersList, toggleMasterActive, getMasterById } = require('../../database/database');
+const {
+  getMastersList,
+  toggleMasterActive,
+  getMasterById,
+  getBranches,
+  createMaster,
+} = require('../../database/database');
 
 // Показать список мастеров
 async function showMastersList(ctx) {
@@ -16,14 +22,9 @@ async function showMastersList(ctx) {
       `master_${m.id}`
     ),
   ]);
+
   buttons.push([Keyboard.button.callback('➕ Добавить мастера', 'admin_add_master')]);
   buttons.push([Keyboard.button.callback('← Назад в админку', 'admin_menu')]);
-
-  const keyboard = Keyboard.inlineKeyboard(buttons);
-
-  await ctx.reply(`👨‍💼 *Список мастеров*\n\nНажмите на мастера для просмотра и управления:`, {
-    attachments: [keyboard],
-  });
 
   const keyboard = Keyboard.inlineKeyboard(buttons);
 
@@ -75,28 +76,25 @@ async function handleToggleMaster(ctx, masterId) {
 // Начать добавление мастера
 async function startAddMaster(ctx, userId, userStates) {
   console.log(`🚀 [DEBUG] Вызвана startAddMaster для userId: ${userId}`);
-
-  // Устанавливаем режим ожидания имени
   userStates.set(userId, { mode: 'admin_add_master_name' });
   console.log(`💾 [DEBUG] Состояние сохранено:`, userStates.get(userId));
-
   await ctx.reply('➕ *Добавление мастера*\n\nВведите имя мастера:');
-  console.log(`📤 [DEBUG] Сообщение "Введите имя мастера" отправлено`);
 }
+
 // Обработка выбора филиала при добавлении
 async function handleAddMasterBranch(ctx, userId, branchId, userStates) {
   const state = userStates.get(userId) || {};
 
   const newMasterId = createMaster(
     branchId,
-    state.temp_name,
-    state.temp_specialty,
-    state.temp_experience,
-    '', // description
-    null // photo_url (можно добавить позже)
+    state.temp_name || 'Без имени',
+    state.temp_specialty || 'Специалист',
+    state.temp_experience || 0,
+    '',
+    null
   );
 
-  userStates.delete(userId); // Очищаем состояние
+  userStates.delete(userId);
 
   await ctx.reply(`✅ Мастер *${state.temp_name}* успешно добавлен!`, {
     attachments: [
