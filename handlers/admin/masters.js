@@ -16,8 +16,14 @@ async function showMastersList(ctx) {
       `master_${m.id}`
     ),
   ]);
-
+  buttons.push([Keyboard.button.callback('➕ Добавить мастера', 'admin_add_master')]);
   buttons.push([Keyboard.button.callback('← Назад в админку', 'admin_menu')]);
+
+  const keyboard = Keyboard.inlineKeyboard(buttons);
+
+  await ctx.reply(`👨‍💼 *Список мастеров*\n\nНажмите на мастера для просмотра и управления:`, {
+    attachments: [keyboard],
+  });
 
   const keyboard = Keyboard.inlineKeyboard(buttons);
 

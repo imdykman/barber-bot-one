@@ -19,7 +19,7 @@ async function showServicesList(ctx) {
       ),
     ];
   });
-
+  buttons.push([Keyboard.button.callback('➕ Добавить услугу', 'admin_add_service')]);
   buttons.push([Keyboard.button.callback('← Назад в админку', 'admin_menu')]);
 
   const keyboard = Keyboard.inlineKeyboard(buttons);
