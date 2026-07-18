@@ -138,16 +138,6 @@ db.exec(`
 
 // ========== ЭКСПОРТ ФУНКЦИЙ ==========
 
-// Получить все активные филиалы
-function getBranches() {
-  return db.prepare('SELECT * FROM branches WHERE is_active = 1').all();
-}
-
-// Получить филиал по ID
-function getBranch(id) {
-  return db.prepare('SELECT * FROM branches WHERE id = ?').get(id);
-}
-
 // Получить мастеров
 function getMasters() {
   return db.prepare('SELECT * FROM masters WHERE is_active = 1 ORDER BY name').all();
@@ -997,12 +987,14 @@ function detachServiceFromMaster(masterId, serviceId) {
 }
 module.exports = {
   db,
-  getBranches,
-  getBranch,
-  getMastersByBranch,
+
+  // Базовые данные
+  getMasters,
   getMaster,
   getServicesByMaster,
   getService,
+
+  // Записи и расписание
   getFreeTimeSlots,
   getOrCreateClient,
   createBooking,
@@ -1010,32 +1002,32 @@ module.exports = {
   getPastBookingsByClient,
   cancelBooking,
   getBookingById,
-  getTodayBookings,
-  getBookingsByDate,
-  getStats,
-  updateBookingStatus,
-  getAllBookings,
-  getMasters,
   getBookingWithClient,
   updateBookingDateTime,
   getFreeSlotsForReschedule,
-  // Управление мастерами
+
+  // Админка: Списки и статистика
+  getTodayBookings,
+  getBookingsByDate,
+  getAllBookings,
+  getStats,
+  updateBookingStatus,
+
+  // Админка: Управление мастерами
   getMastersList,
   createMaster,
   updateMaster,
   toggleMasterActive,
   getMasterById,
 
-  // Управление услугами
+  // Админка: Управление услугами
   getServicesList,
   createService,
   updateService,
   toggleServiceActive,
   getServiceById,
-  createMaster,
-  updateMaster,
-  createService,
-  updateService,
+
+  // Админка: Привязка услуг к мастеру
   getMasterServicesWithStatus,
   attachServiceToMaster,
   detachServiceFromMaster,

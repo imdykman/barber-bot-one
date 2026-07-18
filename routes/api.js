@@ -1,41 +1,27 @@
 const express = require('express');
 const router = express.Router();
 const {
-  getBranches,
-  getMastersByBranch,
+  getMasters,
   getServicesByMaster,
   getFreeTimeSlots,
-  getOrCreateClient,
   createBooking,
-  getActiveBookingsByClient,
-  cancelBooking,
   getBookingWithClient,
+  db,
 } = require('../database/database');
 const { notifyNewBooking } = require('../services/email');
 
-// Получить все филиалы
-router.get('/branches', (req, res) => {
+// 🆕 1. Получить ВСЕХ мастеров (без фильтра по филиалу)
+router.get('/masters', (req, res) => {
   try {
-    const branches = getBranches();
-    res.json({ success: true, data: branches });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-// Получить мастеров филиала
-router.get('/masters/:branchId', (req, res) => {
-  try {
-    const branchId = parseInt(req.params.branchId);
-    const masters = getMastersByBranch(branchId);
+    const masters = getMasters();
     res.json({ success: true, data: masters });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
 });
 
-// Получить услуги мастера
-router.get('/services/:masterId', (req, res) => {
+// 2. Получить услуги конкретного мастера
+router.get('/masters/:masterId/services', (req, res) => {
   try {
     const masterId = parseInt(req.params.masterId);
     const services = getServicesByMaster(masterId);
@@ -45,14 +31,13 @@ router.get('/services/:masterId', (req, res) => {
   }
 });
 
-// Получить свободные слоты
+// 3. Получить свободные слоты
 router.get('/free-slots/:masterId/:serviceId/:date', (req, res) => {
   try {
     const masterId = parseInt(req.params.masterId);
     const serviceId = parseInt(req.params.serviceId);
     const date = req.params.date;
 
-    // ✅ Правильный порядок параметров: masterId, date, serviceId
     const slots = getFreeTimeSlots(masterId, date, serviceId);
     res.json({ success: true, data: slots });
   } catch (error) {
@@ -60,24 +45,16 @@ router.get('/free-slots/:masterId/:serviceId/:date', (req, res) => {
   }
 });
 
-// Создать запись
+// 🆕 4. Создать запись (без branch_id и отдельной таблицы clients)
 router.post('/bookings', async (req, res) => {
   try {
-    const {
-      client_name,
-      client_phone,
-      branch_id,
-      master_id,
-      service_id,
-      booking_date,
-      booking_time,
-    } = req.body;
+    const { client_name, client_phone, master_id, service_id, booking_date, booking_time } =
+      req.body;
 
     // Валидация
     if (
       !client_name ||
       !client_phone ||
-      !branch_id ||
       !master_id ||
       !service_id ||
       !booking_date ||
@@ -85,88 +62,84 @@ router.post('/bookings', async (req, res) => {
     ) {
       return res.status(400).json({ success: false, error: 'Все поля обязательны' });
     }
-    // Создаём или получаем клиента
-    console.log('🔍 Создаём клиента:', { client_name, client_phone });
-    const clientId = getOrCreateClient(null, client_name, client_phone);
-    console.log('✅ Клиент создан, ID:', clientId);
 
-    if (!clientId) {
-      throw new Error('Не удалось создать клиента');
-    }
-
-    // Создаём запись
-    const booking = createBooking(
-      clientId,
+    // Создаём запись напрямую с именем и телефоном
+    const bookingId = createBooking(
       master_id,
       service_id,
-      branch_id,
+      client_name,
+      client_phone,
       booking_date,
-      booking_time
+      booking_time,
+      null // user_id для веб-клиентов пока null (или можно передавать, если есть авторизация)
     );
 
     // Отправляем email админу
     try {
-      const bookingWithDetails = getBookingWithClient(booking.id);
-
+      const bookingWithDetails = getBookingWithClient(bookingId);
       if (bookingWithDetails) {
-        // Передаем user_id из базы данных, если он есть. Если нет — null.
-        await notifyNewBooking(bookingWithDetails, bookingWithDetails.user_id || null);
+        await notifyNewBooking(bookingWithDetails, null);
       }
     } catch (error) {
       console.error('❌ Ошибка отправки email:', error.message);
     }
 
-    res.json({ success: true, data: { booking_id: booking.id } });
+    res.json({ success: true, data: { booking_id: bookingId } });
   } catch (error) {
+    console.error('❌ Ошибка создания записи:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
 
-// Получить мои записи
+// 🆕 5. Получить мои записи (ищем прямо по телефону в таблице bookings)
 router.get('/bookings/:phone', (req, res) => {
   try {
     const phone = req.params.phone;
 
-    // Находим клиента по телефону
-    const { db } = require('../database/database');
-    const client = db.prepare('SELECT * FROM clients WHERE phone = ?').get(phone);
+    // Ищем записи напрямую по телефону, исключая отмененные
+    const bookings = db
+      .prepare(
+        `
+      SELECT b.*, m.name as master_name, s.name as service_name
+      FROM bookings b
+      JOIN masters m ON b.master_id = m.id
+      JOIN services s ON b.service_id = s.id
+      WHERE b.client_phone = ? AND b.status != 'cancelled'
+      ORDER BY b.booking_date DESC, b.booking_time DESC
+    `
+      )
+      .all(phone);
 
-    if (!client) {
-      return res.json({ success: true, data: [] });
-    }
-
-    const bookings = getActiveBookingsByClient(client.id);
     res.json({ success: true, data: bookings });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
 });
 
-// Отменить запись
+// 🆕 6. Отменить запись (проверяем владение по телефону)
 router.put('/bookings/:id/cancel', (req, res) => {
   try {
     const bookingId = parseInt(req.params.id);
     const { phone } = req.body;
 
-    // Проверяем, что клиент имеет право отменять
-    const { db } = require('../database/database');
+    // Проверяем, что запись с таким ID и телефоном существует и не отменена
     const booking = db
       .prepare(
-        'SELECT b.* FROM bookings b JOIN clients c ON b.client_id = c.id WHERE b.id = ? AND c.phone = ?'
+        `
+      SELECT * FROM bookings 
+      WHERE id = ? AND client_phone = ? AND status != 'cancelled'
+    `
       )
       .get(bookingId, phone);
 
     if (!booking) {
-      return res.status(404).json({ success: false, error: 'Запись не найдена' });
+      return res.status(404).json({ success: false, error: 'Запись не найдена или уже отменена' });
     }
 
-    const success = cancelBooking(bookingId, booking.client_id);
+    // Обновляем статус на 'cancelled'
+    db.prepare(`UPDATE bookings SET status = 'cancelled' WHERE id = ?`).run(bookingId);
 
-    if (!success) {
-      return res.status(400).json({ success: false, error: 'Не удалось отменить запись' });
-    }
-
-    res.json({ success: true, message: 'Запись отменена' });
+    res.json({ success: true, message: 'Запись успешно отменена' });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }

@@ -43,6 +43,9 @@ app.get(/.*/, (req, res) => {
 });
 // Запуск сервера
 app.listen(PORT, () => {
-  console.log(`\n Веб-сервер запущен на http://localhost:${PORT}`);
-  console.log(`📱 API: http://localhost:${PORT}/api`);
+  console.log('\n' + '='.repeat(50));
+  console.log('✂️ Ножницы & One — Веб-сервер запущен!');
+  console.log(`🌐 Сайт: http://localhost:${PORT}`);
+  console.log(`📱 API:  http://localhost:${PORT}/api`);
+  console.log('='.repeat(50) + '\n');
 });

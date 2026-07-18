@@ -73,5 +73,5 @@ startReminderScheduler(bot);
 // ========== ЗАПУСК ==========
 bot.start();
 console.log('\n' + '='.repeat(50));
-console.log('✂️ Ножницы&Ко — бот запущен!');
+console.log('✂️ Ножницы & One — бот запущен!');
 console.log('='.repeat(50));

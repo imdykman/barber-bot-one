@@ -1,31 +1,23 @@
 const { Keyboard } = require('@maxhub/max-bot-api');
-const { getBranches } = require('../../database/database');
 const { isAdmin } = require('../../utils/isAdmin');
 
-async function showWelcome(ctx, userId, userStates) {
-  const branches = getBranches();
+async function showWelcome(ctx, userId) {
+  // Формируем кнопки главного меню
+  const buttons = [
+    [Keyboard.button.callback('✂️ Записаться онлайн', 'start_booking')],
+    [Keyboard.button.callback('📋 Мои записи', 'my_bookings')],
+    [Keyboard.button.callback('ℹ️ О салоне', 'about_us')],
+  ];
 
-  // Формируем кнопки филиалов
-  const branchButtons = branches.map((branch) => [
-    Keyboard.button.callback(`🏢 ${branch.name}`, `branch_${branch.id}`),
-  ]);
-
-  // Кнопки клиента
-  branchButtons.push([Keyboard.button.callback('📋 Мои записи', 'my_bookings')]);
-  branchButtons.push([Keyboard.button.callback('ℹ️ О салоне', 'about')]);
-
-  // Кнопка админа (только для админов)
+  // Если пользователь админ, добавляем кнопку входа в админку
   if (isAdmin(userId)) {
-    branchButtons.push([Keyboard.button.callback('🔐 Админ-панель', 'admin_menu')]);
+    buttons.push([Keyboard.button.callback('🔐 Админ-панель', 'admin_menu')]);
   }
 
-  const keyboard = Keyboard.inlineKeyboard(branchButtons);
+  const keyboard = Keyboard.inlineKeyboard(buttons);
 
   await ctx.reply(
-    `✂️ *Ножницы&Ко*\n` +
-      `━━━━━━━━━━━━━━━━━━━━━━\n\n` +
-      `Добро пожаловать в сеть салонов красоты!\n\n` +
-      `🏢 Наши филиалы:`,
+    `👋 *Добро пожаловать в Ножницы & One!*\n\n` + `Мы рады видеть вас! Выберите действие:`,
     { attachments: [keyboard] }
   );
 }

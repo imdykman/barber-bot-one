@@ -16,18 +16,15 @@ function getBookingsForReminder(hoursBefore) {
   const targetHour = targetTime.getHours();
   const targetMinute = targetTime.getMinutes();
 
-  // Получаем записи на целевую дату
+  // 🆕 ОБНОВЛЕННЫЙ ЗАПРОС: без JOIN clients и branches
   const bookings = db
     .prepare(
       `
-    SELECT b.*, c.user_id as client_user_id, c.name as client_name,
-           m.name as master_name, s.name as service_name,
-           br.name as branch_name
+    SELECT b.*, b.user_id as client_user_id, 
+           m.name as master_name, s.name as service_name
     FROM bookings b
-    JOIN clients c ON b.client_id = c.id
     JOIN masters m ON b.master_id = m.id
     JOIN services s ON b.service_id = s.id
-    JOIN branches br ON b.branch_id = br.id
     WHERE b.booking_date = ? 
       AND b.status = 'confirmed'
       AND b.reminder_${hoursBefore}h_sent = 0
@@ -48,17 +45,18 @@ function getBookingsForReminder(hoursBefore) {
 
 // Отправка напоминания через MAX API
 async function sendReminder(bot, booking, hoursBefore) {
-  // 🆕 ПРОВЕРКА: если у клиента нет user_id, пропускаем отправку через бота
+  // ПРОВЕРКА: если у клиента нет user_id, пропускаем отправку через бота
   if (!booking.client_user_id) {
     console.log(
-      `⏭️ Пропускаем напоминание для записи #${booking.id}: у клиента ${booking.client_name} нет MAX ID (админ напомнит по телефону)`
+      `⏭️ Пропускаем напоминание для записи #${booking.id}: у клиента ${booking.client_name} нет MAX ID`
     );
-    // Помечаем как "отправленное", чтобы не пытаться снова каждый час и не спамить логи
+    // Помечаем как "отправленное", чтобы не пытаться снова каждый час
     db.prepare(`UPDATE bookings SET reminder_${hoursBefore}h_sent = 1 WHERE id = ?`).run(
       booking.id
     );
-    return; // Выходим из функции, не доходя до bot.api.sendMessageToUser
+    return;
   }
+
   try {
     const date = new Date(booking.booking_date);
     const displayDate = date.toLocaleDateString('ru-RU', {
@@ -69,16 +67,16 @@ async function sendReminder(bot, booking, hoursBefore) {
 
     const timeText = hoursBefore === 24 ? 'завтра' : 'через час';
 
+    // 🆕 ОБНОВЛЕННОЕ СООБЩЕНИЕ: без упоминания филиала
     const message =
       `⏰ *Напоминание о записи*\n\n` +
       `Ваша запись ${timeText}:\n\n` +
       `📅 ${displayDate} в ${booking.booking_time}\n` +
       `💇 ${booking.master_name}\n` +
-      `💈 ${booking.service_name}\n` +
-      `🏢 ${booking.branch_name}\n\n` +
-      `Ждём вас! 💚`;
+      `💈 ${booking.service_name}\n\n` +
+      `Ждём вас в Ножницы & One! 💚`;
 
-    // ✅ Правильный метод из SDK
+    // Отправляем сообщение через MAX API
     await bot.api.sendMessageToUser(booking.client_user_id, message);
 
     console.log(
@@ -114,7 +112,7 @@ async function checkAndSendReminders(bot) {
   }
 
   console.log(
-    `✅ Проверка завершена: отправлено ${bookings24h.length} (24ч) + ${bookings1h.length} (1ч) напоминаний`
+    `✅ Проверка завершена: найдено ${bookings24h.length} (24ч) + ${bookings1h.length} (1ч) записей для напоминания`
   );
 }
 

@@ -1,170 +1,97 @@
-// Глобальное состояние
-let state = {
-  branch_id: null,
-  master_id: null,
-  service_id: null,
-  booking_date: null,
-  booking_time: null,
-};
-// 🆕 Хранилище для данных филиалов (чтобы брать оттуда имя и адрес)
-let allBranches = [];
-// Инициализация
+// Глобальные переменные
+let allMasters = [];
+let selectedMasterId = null;
+let selectedServiceId = null;
+let selectedDate = null;
+let selectedTime = null;
+
 document.addEventListener('DOMContentLoaded', async () => {
-  // Сначала загружаем филиалы
-  await loadBranches();
-
-  // Проверяем URL на наличие слага филиала (например, "/central")
-  const path = window.location.pathname.replace(/\//g, ''); // убираем все слеши
-
-  if (path && path !== '') {
-    // Ищем филиал с таким slug в уже загруженных данных
-    // Примечание: нам нужно немного доработать loadBranches, чтобы он сохранял данные,
-    // или сделать повторный запрос. Проще всего найти его по slug через API.
-
-    try {
-      const response = await fetch('/api/branches');
-      const { success, data } = await response.json();
-
-      if (success) {
-        const targetBranch = data.find((b) => b.slug === path);
-
-        if (targetBranch) {
-          console.log(`🎯 Автовыбор филиала по URL: ${targetBranch.name}`);
-          selectBranch(targetBranch.id);
-        } else {
-          console.warn(`⚠️ Филиал с slug "${path}" не найден, показываем выбор`);
-        }
-      }
-    } catch (error) {
-      console.error('Ошибка при автовыборе филиала:', error);
-    }
-  }
+  console.log('🚀 Загрузка веб-версии Ножницы & One...');
+  // Сразу загружаем мастеров, минуя выбор филиала
+  await loadMastersDirect();
 });
 
-// Загрузка филиалов
-async function loadBranches() {
+async function loadMastersDirect() {
   try {
-    const response = await fetch('/api/branches');
-    const { success, data } = await response.json();
+    // 🆕 Запрашиваем всех мастеров (без branch_id)
+    const response = await fetch('/api/masters');
+    const result = await response.json();
 
-    if (success) {
-      allBranches = data; // 🆕 Сохраняем данные филиалов
+    if (result.success && result.data) {
+      allMasters = result.data;
+      const container = document.getElementById('masters-list'); // Убедитесь, что в HTML есть этот контейнер
 
-      const container = document.getElementById('branches-list');
-      container.innerHTML = data
-        .map(
-          (branch) => `
-        <div class="card" onclick="selectBranch(${branch.id})">
-          <h3>🏢 ${branch.name}</h3>
-          <p>📍 ${branch.address}</p>
-        </div>
-      `
-        )
-        .join('');
-
-      showStep('branch');
-    }
-  } catch (error) {
-    console.error('Ошибка загрузки филиалов:', error);
-  }
-}
-
-// 🆕 Функция для обновления заголовка страницы
-function updateHeaderForBranch(branch) {
-  const subtitleEl = document.getElementById('header-subtitle');
-  if (branch) {
-    // Показываем название филиала и адрес на новой строке
-    subtitleEl.innerHTML = `${branch.name}<br><span style="font-size: 0.9em; opacity: 0.85;">📍 ${branch.address}</span>`;
-  } else {
-    // Возвращаем стандартный текст, если филиал не выбран
-    subtitleEl.textContent = 'Сеть салонов красоты в Екатеринбурге';
-  }
-}
-
-// Выбор филиала
-function selectBranch(branchId) {
-  state.branch_id = branchId;
-
-  // 🆕 Находим филиал и обновляем заголовок
-  const branch = allBranches.find((b) => b.id === branchId);
-  if (branch) {
-    updateHeaderForBranch(branch);
-  }
-
-  loadMasters(branchId);
-}
-
-// Загрузка мастеров
-async function loadMasters(branchId) {
-  try {
-    const response = await fetch(`/api/masters/${branchId}`);
-    const { success, data } = await response.json();
-
-    if (success) {
-      const container = document.getElementById('masters-list');
-      container.innerHTML = data
-        .map((master) => {
-          // 🆕 Умный выбор фото: берем из БД, иначе по ID, иначе сработает onerror
-          const photoSrc = master.photo_url || `/images/masters/${master.id}.jpg`;
-
-          return `
-        <div class="card" onclick="selectMaster(${master.id})">
-          <img src="${photoSrc}" 
-               onerror="this.onerror=null; this.src='/images/default-avatar.svg';"
-               alt="${master.name}">
-          <h3>💇 ${master.name}</h3>
-          <p>${master.specialty}</p>
-        </div>
-      `;
-        })
-        .join('');
-
-      showStep('master');
-    }
-  } catch (error) {
-    console.error('Ошибка загрузки мастеров:', error);
-  }
-}
-
-// Выбор мастера
-function selectMaster(masterId) {
-  state.master_id = masterId;
-  loadServices(masterId);
-}
-
-// Загрузка услуг
-async function loadServices(masterId) {
-  try {
-    const response = await fetch(`/api/services/${masterId}`);
-    const { success, data } = await response.json();
-
-    if (success) {
-      const container = document.getElementById('services-list');
-      container.innerHTML = data
-        .map(
-          (service) => `
-        <div class="list-item" onclick="selectService(${service.id})">
-          <div>
-            <h3>💈 ${service.name}</h3>
-            <p>⏱️ ${service.duration_minutes} мин</p>
+      if (container) {
+        container.innerHTML = allMasters
+          .map(
+            (master) => `
+          <div class="card" onclick="selectMaster(${master.id})">
+            <img src="${master.photo_url || '/images/default-avatar.svg'}" alt="${master.name}" />
+            <h3>${master.name}</h3>
+            <p>${master.specialty || 'Мастер'}</p>
           </div>
-          <div class="price">${service.price} ₽</div>
-        </div>
-      `
-        )
-        .join('');
+        `
+          )
+          .join('');
 
-      showStep('service');
+        // Показываем шаг выбора мастера
+        showStep('master');
+      }
+    } else {
+      console.error('Ошибка загрузки мастеров:', result);
+    }
+  } catch (error) {
+    console.error('Ошибка сети при загрузке мастеров:', error);
+  }
+}
+
+// Вспомогательная функция для переключения шагов (если она у вас уже есть, оставьте как есть)
+function showStep(stepName) {
+  document.querySelectorAll('.step').forEach((el) => (el.style.display = 'none'));
+  const target = document.getElementById(`step-${stepName}`);
+  if (target) target.style.display = 'block';
+}
+
+function selectMaster(masterId) {
+  selectedMasterId = masterId;
+  console.log('Выбран мастер:', masterId);
+  // Далее загружаем услуги для этого мастера
+  loadServicesForMaster(masterId);
+}
+
+async function loadServicesForMaster(masterId) {
+  try {
+    const response = await fetch(`/api/masters/${masterId}/services`);
+    const result = await response.json();
+
+    if (result.success && result.data) {
+      const container = document.getElementById('services-list');
+      if (container) {
+        container.innerHTML = result.data
+          .map(
+            (service) => `
+          <div class="list-item" onclick="selectService(${service.id}, ${service.price})">
+            <div>
+              <h3>${service.name}</h3>
+              <p>${service.duration_minutes} мин</p>
+            </div>
+            <div class="price">${service.price} ₽</div>
+          </div>
+        `
+          )
+          .join('');
+        showStep('service');
+      }
     }
   } catch (error) {
     console.error('Ошибка загрузки услуг:', error);
   }
 }
 
-// Выбор услуги
-function selectService(serviceId) {
-  state.service_id = serviceId;
-  loadDates();
+function selectService(serviceId, price) {
+  selectedServiceId = serviceId;
+  console.log('Выбрана услуга:', serviceId);
+  loadCalendar(); // Переход к выбору даты
 }
 
 // Загрузка дат
