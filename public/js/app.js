@@ -6,7 +6,8 @@ let state = {
   booking_date: null,
   booking_time: null,
 };
-
+// 🆕 Хранилище для данных филиалов (чтобы брать оттуда имя и адрес)
+let allBranches = [];
 // Инициализация
 document.addEventListener('DOMContentLoaded', async () => {
   // Сначала загружаем филиалы
@@ -47,6 +48,8 @@ async function loadBranches() {
     const { success, data } = await response.json();
 
     if (success) {
+      allBranches = data; // 🆕 Сохраняем данные филиалов
+
       const container = document.getElementById('branches-list');
       container.innerHTML = data
         .map(
@@ -66,9 +69,28 @@ async function loadBranches() {
   }
 }
 
+// 🆕 Функция для обновления заголовка страницы
+function updateHeaderForBranch(branch) {
+  const subtitleEl = document.getElementById('header-subtitle');
+  if (branch) {
+    // Показываем название филиала и адрес на новой строке
+    subtitleEl.innerHTML = `${branch.name}<br><span style="font-size: 0.9em; opacity: 0.85;">📍 ${branch.address}</span>`;
+  } else {
+    // Возвращаем стандартный текст, если филиал не выбран
+    subtitleEl.textContent = 'Сеть салонов красоты в Екатеринбурге';
+  }
+}
+
 // Выбор филиала
 function selectBranch(branchId) {
   state.branch_id = branchId;
+
+  // 🆕 Находим филиал и обновляем заголовок
+  const branch = allBranches.find((b) => b.id === branchId);
+  if (branch) {
+    updateHeaderForBranch(branch);
+  }
+
   loadMasters(branchId);
 }
 
@@ -239,6 +261,7 @@ function showStep(step) {
 
 function backToBranch() {
   state.branch_id = null;
+  updateHeaderForBranch(null); // 🆕 Сбрасываем заголовок на дефолтный
   showStep('branch');
 }
 function backToMaster() {
