@@ -11,13 +11,12 @@ const {
   showRescheduleTime,
   applyReschedule,
 } = require('../handlers/admin/booking-details');
-const { getMasters, getBranches } = require('../database/database');
+const { getMasters } = require('../database/database');
 const {
   showMastersList,
   showMasterDetails,
   handleToggleMaster,
   startAddMaster,
-  handleAddMasterBranch,
   showMasterServices,
   handleMasterServiceToggle,
 } = require('../handlers/admin/masters');
@@ -97,24 +96,8 @@ async function handleCallback(ctx, data, userId, { userStates }) {
     const { userStates } = require('../services/states');
     userStates.set(userId, { mode: 'admin_create_booking' });
 
-    const { showBranchSelection } = require('../handlers/admin/create-booking');
-    await showBranchSelection(ctx, userId);
-    return true;
-  }
-
-  // Создание записи — выбор филиала
-  if (data.startsWith('admin_book_branch_')) {
-    if (!checkAccess(ctx, userId)) return true;
-    const branchId = parseInt(data.replace('admin_book_branch_', ''));
-    console.log(`📝 Админ: выбор филиала ${branchId}`);
-
-    const { userStates } = require('../services/states');
-    const state = userStates.get(userId) || {};
-    state.branch_id = branchId;
-    userStates.set(userId, state);
-
     const { showMasterSelection } = require('../handlers/admin/create-booking');
-    await showMasterSelection(ctx, userId, branchId);
+    await showMasterSelection(ctx, userId); // Без branchId
     return true;
   }
 
@@ -311,34 +294,6 @@ async function handleCallback(ctx, data, userId, { userStates }) {
     return true;
   }
 
-  // Фильтр по филиалу
-  if (data === 'admin_filter_branch') {
-    if (!checkAccess(ctx, userId)) return true;
-    console.log(`🏢 Админ: фильтр по филиалу`);
-
-    const branches = getBranches();
-    const branchButtons = branches.map((branch) => [
-      Keyboard.button.callback(branch.name, `admin_branch_${branch.id}`),
-    ]);
-
-    const keyboard = Keyboard.inlineKeyboard([
-      ...branchButtons,
-      [Keyboard.button.callback('⬅️ Назад', 'admin_all_bookings')],
-    ]);
-
-    await ctx.reply('🏢 Выберите филиал:', { attachments: [keyboard] });
-    return true;
-  }
-
-  // Обработка выбранного филиала
-  if (data.startsWith('admin_branch_')) {
-    if (!checkAccess(ctx, userId)) return true;
-    const branchId = data.replace('admin_branch_', '');
-    console.log(`🏢 Админ: фильтр по филиалу ${branchId}`);
-    await showAllBookings(ctx, userId, { branch_id: branchId });
-    return true;
-  }
-
   // Фильтр по статусу
   if (data === 'admin_filter_status') {
     if (!checkAccess(ctx, userId)) return true;
@@ -516,13 +471,6 @@ async function handleCallback(ctx, data, userId, { userStates }) {
   if (data === 'admin_add_master') {
     if (!checkAccess(ctx, userId)) return true;
     await startAddMaster(ctx, userId, userStates);
-    return true;
-  }
-  if (data.startsWith('admin_add_master_branch_')) {
-    console.log(`🔍 [DEBUG] Перехвачен callback: ${data}`);
-    if (!checkAccess(ctx, userId)) return true;
-    const branchId = parseInt(data.replace('admin_add_master_branch_', ''));
-    await handleAddMasterBranch(ctx, userId, branchId, userStates);
     return true;
   }
 

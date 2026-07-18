@@ -32,19 +32,27 @@ async function handleMessage(ctx, text, userId, { userStates, getUserId }) {
 
     if (state.mode === 'admin_add_master_experience') {
       console.log(`✅ [DEBUG] Сработал режим admin_add_master_experience! Сохраняем: "${text}"`);
-      state.temp_experience = parseInt(text) || 0;
-      state.mode = 'admin_add_master_branch';
-      userStates.set(userId, state);
+      const experience = parseInt(text) || 0;
 
-      const { getBranches } = require('../database/database');
-      const { Keyboard } = require('@maxhub/max-bot-api');
-      const branches = getBranches();
-      const buttons = branches.map((b) => [
-        Keyboard.button.callback(b.name, `admin_add_master_branch_${b.id}`),
-      ]);
+      // 🆕 Сразу создаём мастера (без филиала)
+      const { createMaster } = require('../database/database');
+      const newMasterId = createMaster(
+        state.temp_name || 'Без имени',
+        state.temp_specialty || 'Специалист',
+        experience,
+        '',
+        null
+      );
+      console.log(`✅ [DEBUG] Мастер создан с ID: ${newMasterId}`);
 
-      await ctx.reply('🏢 Выберите филиал для мастера:', {
-        attachments: [Keyboard.inlineKeyboard(buttons)],
+      userStates.delete(userId);
+
+      await ctx.reply(`✅ Мастер *${state.temp_name}* успешно добавлен!`, {
+        attachments: [
+          Keyboard.inlineKeyboard([
+            [Keyboard.button.callback('⬅️ К списку мастеров', 'admin_masters')],
+          ]),
+        ],
       });
       return;
     }
@@ -116,57 +124,55 @@ async function handleMessage(ctx, text, userId, { userStates, getUserId }) {
       return;
     }
     if (state.mode === 'admin_add_master_experience') {
-      const exp = parseInt(text) || 0;
-      state.temp_experience = exp;
-      state.mode = 'admin_add_master_branch';
-      userStates.set(userId, state);
+      console.log(`✅ [DEBUG] Сработал режим admin_add_master_experience! Сохраняем: "${text}"`);
+      const experience = parseInt(text) || 0;
 
-      // Показываем кнопки филиалов
-      const { getBranches } = require('../database/database');
-      const { Keyboard } = require('@maxhub/max-bot-api');
-      const branches = getBranches();
-      const buttons = branches.map((b) => [
-        Keyboard.button.callback(b.name, `admin_add_master_branch_${b.id}`),
-      ]);
-      await ctx.reply('🏢 Выберите филиал для мастера:', {
-        attachments: [Keyboard.inlineKeyboard(buttons)],
+      // 🆕 Сразу создаём мастера (без филиала)
+      const { createMaster } = require('../database/database');
+      const newMasterId = createMaster(
+        state.temp_name || 'Без имени',
+        state.temp_specialty || 'Специалист',
+        experience,
+        '',
+        null
+      );
+      console.log(`✅ [DEBUG] Мастер создан с ID: ${newMasterId}`);
+
+      userStates.delete(userId);
+
+      await ctx.reply(`✅ Мастер *${state.temp_name}* успешно добавлен!`, {
+        attachments: [
+          Keyboard.inlineKeyboard([
+            [Keyboard.button.callback('⬅️ К списку мастеров', 'admin_masters')],
+          ]),
+        ],
       });
       return;
     }
 
     // --- ДОБАВЛЕНИЕ УСЛУГИ ---
-    if (state.mode === 'admin_add_service_name') {
-      state.temp_name = text;
-      state.mode = 'admin_add_service_category';
-      userStates.set(userId, state);
-      await ctx.reply('📂 Введите категорию услуги (например: Стрижки, Окрашивание):');
-      return;
-    }
-    if (state.mode === 'admin_add_service_category') {
-      state.temp_category = text;
-      state.mode = 'admin_add_service_price';
-      userStates.set(userId, state);
-      await ctx.reply('💰 Введите минимальную цену услуги (число, например: 1500):');
-      return;
-    }
-    if (state.mode === 'admin_add_service_price') {
-      state.temp_price_min = parseInt(text) || 0;
-      state.mode = 'admin_add_service_duration';
-      userStates.set(userId, state);
-      await ctx.reply('⏱️ Введите длительность услуги в минутах (число, например: 60):');
-      return;
-    }
     if (state.mode === 'admin_add_service_duration') {
+      console.log(`✅ [DEBUG] Сработал режим admin_add_service_duration! Сохраняем: "${text}"`);
       const duration = parseInt(text) || 60;
+
+      // 🆕 Вызываем createService с правильными аргументами (без branch_id)
       const { createService } = require('../database/database');
+      const newServiceId = createService(
+        state.temp_name || 'Без названия',
+        state.temp_category || 'Общее',
+        parseInt(state.temp_price) || 0,
+        null, // price_max
+        duration,
+        '' // description
+      );
+      console.log(`✅ [DEBUG] Услуга создана с ID: ${newServiceId}`);
 
-      createService(state.temp_name, state.temp_category, state.temp_price_min, 0, duration, '');
-      userStates.delete(userId); // Очищаем состояние
+      userStates.delete(userId);
 
-      await ctx.reply(`✅ Услуга "*${state.temp_name}*" успешно добавлена!`, {
+      await ctx.reply(`✅ Услуга *${state.temp_name}* успешно добавлена!`, {
         attachments: [
           Keyboard.inlineKeyboard([
-            [Keyboard.button.callback('⬅️ В меню услуг', 'admin_services')],
+            [Keyboard.button.callback('⬅️ К списку услуг', 'admin_services')],
           ]),
         ],
       });

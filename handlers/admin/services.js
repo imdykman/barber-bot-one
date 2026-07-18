@@ -3,29 +3,30 @@ const { getServicesList, toggleServiceActive, getServiceById } = require('../../
 
 // Показать список услуг
 async function showServicesList(ctx) {
-  const services = getServicesList();
+  const services = getServicesList() || [];
 
-  if (!services || services.length === 0) {
-    await ctx.reply('❌ Услуги не найдены');
-    return;
+  let message = '💈 *Список услуг*\n\n';
+
+  if (services.length === 0) {
+    message += 'Пока нет добавленных услуг.';
+  } else {
+    message += 'Нажмите на услугу для просмотра и управления:\n\n';
   }
 
-  const buttons = services.map((s) => {
-    const price = s.price_max ? `${s.price_min}-${s.price_max}₽` : `${s.price_min}₽`;
-    return [
-      Keyboard.button.callback(
-        `${s.is_active ? '✅' : '❌'} ${s.name} (${price})`,
-        `service_${s.id}`
-      ),
-    ];
-  });
+  const buttons = services.map((s) => [
+    Keyboard.button.callback(
+      `${s.is_active ? '✅' : '❌'} ${s.name} (${s.price_min}₽)`,
+      `service_${s.id}`
+    ),
+  ]);
 
+  // Кнопки добавляем ВСЕГДА, даже если список пуст
   buttons.push([Keyboard.button.callback('➕ Добавить услугу', 'admin_add_service')]);
   buttons.push([Keyboard.button.callback('← Назад в админку', 'admin_menu')]);
 
   const keyboard = Keyboard.inlineKeyboard(buttons);
 
-  await ctx.reply(`💈 *Список услуг*\n\nНажмите на услугу для просмотра и управления:`, {
+  await ctx.reply(message, {
     attachments: [keyboard],
   });
 }

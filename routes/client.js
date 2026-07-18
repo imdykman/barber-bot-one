@@ -18,11 +18,10 @@ async function handleCallback(ctx, data, userId, { userStates }) {
     return true;
   }
 
-  // Выбор филиала
-  if (data.startsWith('branch_')) {
-    const branchId = parseInt(data.replace('branch_', ''));
-    console.log(`📍 Выбран филиал: ${branchId}`);
-    await showMasters(ctx, userId, userStates, branchId);
+  // 🆕 НАЧАЛО ЗАПИСИ (сразу к мастерам, без выбора филиала)
+  if (data === 'start_booking') {
+    console.log(`📝 Клиент ${userId} начал запись`);
+    await showMasters(ctx, userId, userStates);
     return true;
   }
 
@@ -114,24 +113,24 @@ async function handleCallback(ctx, data, userId, { userStates }) {
   }
 
   // О салоне
-  if (data === 'about') {
+  if (data === 'about' || data === 'about_us') {
     await ctx.reply(
-      `ℹ️ *О салоне "Ножницы&Ко"*\n\n` +
+      `ℹ️ *О салоне "Ножницы & One"*\n\n` +
         `━━━━━━━━━━━━━━━━━━━━━━\n\n` +
-        `Мы — сеть салонов красоты в Екатеринбурге.\n\n` +
+        `Мы — современный салон красоты.\n\n` +
         `✨ *Наши преимущества:*\n` +
-        `• Опытные мастера (от 4 до 10 лет)\n` +
+        `• Опытные мастера\n` +
         `• Премиальная косметика\n` +
-        `• 3 удобных филиала в разных районах\n` +
-        `• Онлайн-запись 24/7\n` +
-        `• Программа лояльности\n\n` +
+        `• Удобное расположение\n` +
+        `• Онлайн-запись 24/7\n\n` +
         `📞 *Контакты:*\n` +
-        `• Центральный: +7 (343) 100-10-10\n` +
-        `• Северный: +7 (343) 200-20-20\n` +
-        `• Южный: +7 (343) 300-30-30\n\n` +
+        `• Телефон: +7 (XXX) XXX-XX-XX\n` +
+        `• Адрес: г. Екатеринбург, ул. Примерная, 1\n\n` +
         `💚 Ждём вас!`,
       {
-        attachments: [Keyboard.inlineKeyboard([[Keyboard.button.callback('⬅️ Назад', 'start')]])],
+        attachments: [
+          Keyboard.inlineKeyboard([[Keyboard.button.callback('⬅️ В главное меню', 'start')]]),
+        ],
       }
     );
     return true;

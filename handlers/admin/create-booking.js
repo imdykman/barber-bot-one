@@ -8,53 +8,25 @@ const {
   getOrCreateClient,
 } = require('../../database/database');
 
-// ========== ШАГ 1: ВЫБОР ФИЛИАЛА ==========
-
-async function showBranchSelection(ctx, userId) {
-  const branches = getBranches();
-
-  const branchButtons = branches.map((branch) => [
-    Keyboard.button.callback(`🏢 ${branch.name}`, `admin_book_branch_${branch.id}`),
-  ]);
-
-  branchButtons.push([Keyboard.button.callback('❌ Отмена', 'admin_menu')]);
-
-  const keyboard = Keyboard.inlineKeyboard(branchButtons);
-
-  await ctx.reply(
-    `📝 *Создание записи*\n\n` + `━━━━━━━━━━━━━━━━━━━━━━\n\n` + `Шаг 1/6: Выберите филиал`,
-    { attachments: [keyboard] }
-  );
-}
-
 // ========== ШАГ 2: ВЫБОР МАСТЕРА ==========
 
-async function showMasterSelection(ctx, userId, branchId) {
-  const masters = getMastersByBranch(branchId);
+async function showMasterSelection(ctx, userId) {
+  const { getMasters } = require('../../database/database');
+  const masters = getMasters(); // Все мастера, без фильтра по филиалу
 
-  if (masters.length === 0) {
-    await ctx.reply(`❌ В этом филиале нет мастеров.\n\nВыберите другой филиал.`, {
-      attachments: [
-        Keyboard.inlineKeyboard([
-          [Keyboard.button.callback('⬅️ К филиалам', 'admin_create_booking')],
-        ]),
-      ],
-    });
+  if (!masters || masters.length === 0) {
+    await ctx.reply('❌ Нет доступных мастеров.');
     return;
   }
 
-  const masterButtons = masters.map((master) => [
-    Keyboard.button.callback(`💇 ${master.name}`, `admin_book_master_${master.id}`),
+  const buttons = masters.map((m) => [
+    Keyboard.button.callback(`${m.name} (${m.specialty || 'Мастер'})`, `admin_book_master_${m.id}`),
   ]);
+  buttons.push([Keyboard.button.callback('❌ Отмена', 'admin_menu')]);
 
-  masterButtons.push([Keyboard.button.callback('⬅️ Назад', 'admin_create_booking')]);
-
-  const keyboard = Keyboard.inlineKeyboard(masterButtons);
-
-  await ctx.reply(
-    `📝 *Создание записи*\n\n` + `━━━━━━━━━━━━━━━━━━━━━━\n\n` + `Шаг 2/6: Выберите мастера`,
-    { attachments: [keyboard] }
-  );
+  await ctx.reply('💇 Выберите мастера:', {
+    attachments: [Keyboard.inlineKeyboard(buttons)],
+  });
 }
 
 // ========== ШАГ 3: ВЫБОР УСЛУГИ ==========

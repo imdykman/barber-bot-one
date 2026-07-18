@@ -46,8 +46,6 @@ async function showBookingDetails(ctx, userId, bookingId) {
   message += `💈 *Услуга:* ${booking.service_name}\n`;
   message += `💰 *Стоимость:* ${booking.service_price} ₽\n`;
   message += `⏱️ *Длительность:* ${booking.duration_minutes} мин\n\n`;
-  message += `🏢 *Филиал:* ${booking.branch_name}\n`;
-  message += `📍 ${booking.branch_address}\n`;
 
   // Кнопки действий
   const buttons = [];
@@ -104,10 +102,8 @@ async function applyStatusChange(ctx, userId, bookingId, newStatus) {
     `Ваша запись ${statusText}:\n\n` +
     `📅 ${displayDate} в ${booking.booking_time}\n` +
     `💇 ${booking.master_name}\n` +
-    `💈 ${booking.service_name}\n` +
-    `🏢 ${booking.branch_name}`;
-
-  await notifyClient(ctx, booking.client_user_id, notificationText);
+    `💈 ${booking.service_name}\n`;
+  +(await notifyClient(ctx, booking.client_user_id, notificationText));
 
   await ctx.reply(
     `✅ *Статус изменён*\n\n` + `Запись #${bookingId} ${statusText}.\n\n` + `📱 Клиент уведомлён.`,
@@ -277,8 +273,7 @@ async function applyReschedule(ctx, userId, newTime) {
     `📅 Было: ${oldDisplayDate} в ${booking.booking_time}\n` +
     `📅 Стало: ${newDisplayDate} в ${newTime}\n\n` +
     `💇 ${booking.master_name}\n` +
-    `💈 ${booking.service_name}\n` +
-    `🏢 ${booking.branch_name}`;
+    `💈 ${booking.service_name}\n`;
 
   await notifyClient(ctx, booking.client_user_id, notificationText);
 

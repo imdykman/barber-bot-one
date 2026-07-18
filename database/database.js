@@ -1,44 +1,27 @@
 const Database = require('better-sqlite3');
 const path = require('path');
 
-const db = require('better-sqlite3')('./database/barber-one.db');
+const db = new Database('./database/barber-one.db');
 
 // Включаем WAL-режим для лучшей производительности
 db.pragma('journal_mode = WAL');
 db.pragma('foreign_keys = ON');
 
-// ========== СОЗДАНИЕ ТАБЛИЦ ==========
+// ========== СОЗДАНИЕ ТАБЛИЦ (Версия One, без branch_id и client_id) ==========
 
-// Филиалы
-db.exec(`
-  CREATE TABLE IF NOT EXISTS branches (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
-    address TEXT NOT NULL,
-    phone TEXT,
-    work_hours TEXT,
-    is_active INTEGER DEFAULT 1,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  )
-`);
-
-// Мастера
 db.exec(`
   CREATE TABLE IF NOT EXISTS masters (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    branch_id INTEGER NOT NULL,
     name TEXT NOT NULL,
     specialty TEXT NOT NULL,
     experience INTEGER DEFAULT 0,
     description TEXT,
     photo_url TEXT,
     is_active INTEGER DEFAULT 1,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (branch_id) REFERENCES branches(id)
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )
 `);
 
-// Услуги
 db.exec(`
   CREATE TABLE IF NOT EXISTS services (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -53,7 +36,6 @@ db.exec(`
   )
 `);
 
-// Связь мастер-услуга (с ценой и длительностью для конкретного мастера)
 db.exec(`
   CREATE TABLE IF NOT EXISTS master_services (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -67,7 +49,6 @@ db.exec(`
   )
 `);
 
-// График работы мастеров
 db.exec(`
   CREATE TABLE IF NOT EXISTS schedule (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -80,75 +61,63 @@ db.exec(`
   )
 `);
 
-// Клиенты
 db.exec(`
-  CREATE TABLE IF NOT EXISTS clients (
+  CREATE TABLE IF NOT EXISTS holidays (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER UNIQUE NOT NULL,
-    name TEXT,
-    phone TEXT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    master_id INTEGER,
+    holiday_date TEXT NOT NULL,
+    reason TEXT,
+    FOREIGN KEY (master_id) REFERENCES masters(id)
   )
 `);
 
-// Записи
 db.exec(`
   CREATE TABLE IF NOT EXISTS bookings (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    client_id INTEGER NOT NULL,
     master_id INTEGER NOT NULL,
     service_id INTEGER NOT NULL,
-    branch_id INTEGER NOT NULL,
+    client_name TEXT NOT NULL,
+    client_phone TEXT NOT NULL,
+    user_id INTEGER,
     booking_date TEXT NOT NULL,
     booking_time TEXT NOT NULL,
-    status TEXT DEFAULT 'confirmed',
+    status TEXT DEFAULT 'pending',
     notes TEXT,
+    reminder_24h_sent INTEGER DEFAULT 0,
+    reminder_1h_sent INTEGER DEFAULT 0,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (client_id) REFERENCES clients(id),
     FOREIGN KEY (master_id) REFERENCES masters(id),
-    FOREIGN KEY (service_id) REFERENCES services(id),
-    FOREIGN KEY (branch_id) REFERENCES branches(id)
+    FOREIGN KEY (service_id) REFERENCES services(id)
   )
 `);
 
-// Админы
 db.exec(`
   CREATE TABLE IF NOT EXISTS admins (
     user_id INTEGER PRIMARY KEY,
     name TEXT,
     role TEXT DEFAULT 'admin',
-    branch_id INTEGER,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (branch_id) REFERENCES branches(id)
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )
 `);
 
-// Выходные/праздники (когда мастер не работает)
 db.exec(`
-  CREATE TABLE IF NOT EXISTS holidays (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    master_id INTEGER,
-    branch_id INTEGER,
-    holiday_date TEXT NOT NULL,
-    reason TEXT,
-    FOREIGN KEY (master_id) REFERENCES masters(id),
-    FOREIGN KEY (branch_id) REFERENCES branches(id)
+  CREATE TABLE IF NOT EXISTS user_states (
+    user_id INTEGER PRIMARY KEY,
+    state_data TEXT NOT NULL,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )
 `);
 
-// ========== ЭКСПОРТ ФУНКЦИЙ ==========
+// ========== БАЗОВЫЕ ДАННЫЕ ==========
 
-// Получить мастеров
 function getMasters() {
   return db.prepare('SELECT * FROM masters WHERE is_active = 1 ORDER BY name').all();
 }
 
-// Получить мастера по ID
 function getMaster(id) {
   return db.prepare('SELECT * FROM masters WHERE id = ?').get(id);
 }
 
-// Получить услуги мастера
 function getServicesByMaster(masterId) {
   return db
     .prepare(
@@ -163,175 +132,133 @@ function getServicesByMaster(masterId) {
     .all(masterId);
 }
 
-// Получить все услуги
-function getServices() {
-  return db.prepare('SELECT * FROM services WHERE is_active = 1 ORDER BY category, name').all();
-}
-
-// Получить услугу по ID
 function getService(id) {
   return db.prepare('SELECT * FROM services WHERE id = ?').get(id);
 }
 
-// Получить график мастера
 function getMasterSchedule(masterId) {
   return db.prepare('SELECT * FROM schedule WHERE master_id = ?').all(masterId);
 }
 
-// Получить или создать клиента
-function getOrCreateClient(userId, name, phone) {
-  // Если есть userId — ищем по нему
-  if (userId) {
-    let client = db.prepare('SELECT * FROM clients WHERE user_id = ?').get(userId);
-    if (client) {
-      // Обновляем имя и телефон, если изменились
-      db.prepare('UPDATE clients SET name = ?, phone = ? WHERE id = ?').run(name, phone, client.id);
-      return client.id;
-    }
-  }
+// ========== ЗАПИСИ И РАСПИСАНИЕ ==========
 
-  // Если нет userId (запись админом) — ищем по телефону
-  if (phone) {
-    let client = db.prepare('SELECT * FROM clients WHERE phone = ?').get(phone);
-    if (client) {
-      // Обновляем имя И привязываем user_id (если он передан)
-      if (userId && !client.user_id) {
-        db.prepare('UPDATE clients SET name = ?, user_id = ? WHERE id = ?').run(
-          name,
-          userId,
-          client.id
-        );
-        console.log(`🔗 Привязали клиента ID ${client.id} к user_id ${userId}`);
-      } else {
-        db.prepare('UPDATE clients SET name = ? WHERE id = ?').run(name, client.id);
-      }
-      return client.id;
-    }
-  }
-
-  // Создаём нового клиента
-  const result = db
-    .prepare('INSERT INTO clients (user_id, name, phone) VALUES (?, ?, ?)')
-    .run(userId || null, name, phone || null);
-  return result.lastInsertRowid;
-}
-
-// Создать запись
 function createBooking(masterId, serviceId, clientName, clientPhone, date, time, userId = null) {
   const result = db
     .prepare(
       `
-    INSERT INTO bookings (master_id, service_id, client_name, client_phone, booking_date, booking_time, user_id, status)
+    INSERT INTO bookings (master_id, service_id, client_name, client_phone, user_id, booking_date, booking_time, status)
     VALUES (?, ?, ?, ?, ?, ?, ?, 'pending')
   `
     )
-    .run(masterId, serviceId, clientName, clientPhone, date, time, userId);
+    .run(masterId, serviceId, clientName, clientPhone, userId, date, time);
   return result.lastInsertRowid;
 }
 
-// Получить записи клиента
-function getClientBookings(clientId) {
+function getActiveBookingsByClient(phone) {
+  const today = new Date().toISOString().split('T')[0];
   return db
     .prepare(
       `
-    SELECT b.*, m.name as master_name, s.name as service_name, br.name as branch_name
+    SELECT b.*, s.name as service_name, m.name as master_name
     FROM bookings b
-    JOIN masters m ON b.master_id = m.id
     JOIN services s ON b.service_id = s.id
-    WHERE b.client_id = ? AND b.status = 'confirmed'
-    ORDER BY b.booking_date DESC, b.booking_time DESC
+    JOIN masters m ON b.master_id = m.id
+    WHERE b.client_phone = ? 
+      AND b.booking_date >= ?
+      AND b.status IN ('confirmed', 'pending')
+    ORDER BY b.booking_date ASC, b.booking_time ASC
   `
     )
-    .all(clientId);
+    .all(phone, today);
 }
 
-// Получить записи мастера на дату
-function getMasterBookings(masterId, date) {
+function getPastBookingsByClient(phone) {
+  const today = new Date().toISOString().split('T')[0];
   return db
     .prepare(
       `
-    SELECT b.*, c.name as client_name, c.phone as client_phone, s.name as service_name
+    SELECT b.*, s.name as service_name, m.name as master_name
     FROM bookings b
-    JOIN clients c ON b.client_id = c.id
     JOIN services s ON b.service_id = s.id
-    WHERE b.master_id = ? AND b.booking_date = ? AND b.status = 'confirmed'
-    ORDER BY b.booking_time
+    JOIN masters m ON b.master_id = m.id
+    WHERE b.client_phone = ? 
+      AND (b.booking_date < ? OR b.status = 'cancelled')
+    ORDER BY b.booking_date DESC, b.booking_time DESC
+    LIMIT 10
+  `
+    )
+    .all(phone, today);
+}
+
+function cancelBooking(bookingId, phone) {
+  const result = db
+    .prepare(
+      `
+    UPDATE bookings 
+    SET status = 'cancelled' 
+    WHERE id = ? AND client_phone = ? AND status IN ('confirmed', 'pending')
+  `
+    )
+    .run(bookingId, phone);
+  return result.changes > 0;
+}
+
+function getBookingById(bookingId) {
+  return db
+    .prepare(
+      `
+    SELECT b.*, s.name as service_name, m.name as master_name
+    FROM bookings b
+    JOIN services s ON b.service_id = s.id
+    JOIN masters m ON b.master_id = m.id
+    WHERE b.id = ?
+  `
+    )
+    .get(bookingId);
+}
+
+function isTimeSlotFree(masterId, date, timeStr, durationMinutes) {
+  const bookings = db
+    .prepare(
+      `
+    SELECT b.booking_time, COALESCE(ms.duration_minutes, s.duration_minutes) as duration
+    FROM bookings b
+    LEFT JOIN master_services ms ON ms.master_id = b.master_id AND ms.service_id = b.service_id
+    JOIN services s ON b.service_id = s.id
+    WHERE b.master_id = ? AND b.booking_date = ? AND b.status != 'cancelled'
   `
     )
     .all(masterId, date);
-}
 
-// Получить записи филиала на дату
-function getBranchBookings(branchId, date) {
-  return db
-    .prepare(
-      `
-    SELECT b.*, m.name as master_name, c.name as client_name, c.phone as client_phone, s.name as service_name
-    FROM bookings b
-    JOIN masters m ON b.master_id = m.id
-    JOIN clients c ON b.client_id = c.id
-    JOIN services s ON b.service_id = s.id
-    ORDER BY b.booking_time
-  `
-    )
-    .all(branchId, date);
-}
+  const [startH, startM] = timeStr.split(':').map(Number);
+  const slotStart = startH * 60 + startM;
+  const slotEnd = slotStart + durationMinutes;
 
-// Проверить, является ли пользователь админом
-function isAdmin(userId) {
-  return db.prepare('SELECT * FROM admins WHERE user_id = ?').get(userId);
-}
-
-// Проверить занятость времени
-function isTimeSlotFree(masterId, date, time, durationMinutes) {
-  // Получаем все записи мастера на эту дату
-  const bookings = getMasterBookings(masterId, date);
-
-  // Парсим время начала нового слота
-  const [newHours, newMinutes] = time.split(':').map(Number);
-  const newStart = newHours * 60 + newMinutes;
-  const newEnd = newStart + durationMinutes;
-
-  // Проверяем пересечения с существующими записями
   for (const booking of bookings) {
-    const [bHours, bMinutes] = booking.booking_time.split(':').map(Number);
-    const service = getService(booking.service_id);
-    const bStart = bHours * 60 + bMinutes;
-    const bEnd = bStart + service.duration_minutes;
+    const [bH, bM] = booking.booking_time.split(':').map(Number);
+    const bStart = bH * 60 + bM;
+    const bEnd = bStart + (booking.duration || 60);
 
-    // Если есть пересечение
-    if (newStart < bEnd && newEnd > bStart) {
+    if (slotStart < bEnd && slotEnd > bStart) {
       return false;
     }
   }
-
   return true;
 }
 
-// Получить свободные слоты мастера на дату
 function getFreeTimeSlots(masterId, date, serviceId = null) {
   const schedule = getMasterSchedule(masterId);
-  const dayOfWeek = new Date(date).getDay(); // 0 = воскресенье, 6 = суббота
-
-  // Находим график для этого дня недели
+  const dayOfWeek = new Date(date).getDay();
   const daySchedule = schedule.find((s) => s.day_of_week === dayOfWeek);
 
   if (!daySchedule) return [];
 
-  // Проверяем, не выходной ли это день
   const holiday = db
-    .prepare(
-      `
-    SELECT * FROM holidays 
-    WHERE master_id = ? AND holiday_date = ?
-  `
-    )
+    .prepare('SELECT * FROM holidays WHERE master_id = ? AND holiday_date = ?')
     .get(masterId, date);
-
   if (holiday) return [];
 
-  // 🆕 Получаем длительность услуги (сначала ищем у конкретного мастера, потом в общей таблице)
-  let durationMinutes = 60; // Значение по умолчанию
+  let durationMinutes = 60;
   if (serviceId) {
     const ms = db
       .prepare(
@@ -344,337 +271,134 @@ function getFreeTimeSlots(masterId, date, serviceId = null) {
       const service = db
         .prepare('SELECT duration_minutes FROM services WHERE id = ?')
         .get(serviceId);
-      if (service) {
-        durationMinutes = service.duration_minutes;
-      }
+      if (service) durationMinutes = service.duration_minutes;
     }
   }
 
-  // Проверяем, является ли дата сегодняшней
   const today = new Date();
   const todayStr = today.toISOString().split('T')[0];
   const isToday = date === todayStr;
   const currentMinutes = today.getHours() * 60 + today.getMinutes();
 
-  // Генерируем слоты с шагом 30 минут
   const slots = [];
   const [startH, startM] = daySchedule.start_time.split(':').map(Number);
   const [endH, endM] = daySchedule.end_time.split(':').map(Number);
   const startMinutes = startH * 60 + startM;
   const endMinutes = endH * 60 + endM;
-
-  // 🆕 ГЛАВНОЕ ИСПРАВЛЕНИЕ:
-  // Максимальное время начала записи = время закрытия - длительность услуги
   const maxStartMinutes = endMinutes - durationMinutes;
 
-  // 🆕 Цикл идёт ДО maxStartMinutes (включительно)
   for (let minutes = startMinutes; minutes <= maxStartMinutes; minutes += 30) {
-    // Если сегодня — пропускаем прошедшие слоты
-    if (isToday && minutes <= currentMinutes) {
-      continue;
-    }
+    if (isToday && minutes <= currentMinutes) continue;
 
     const hours = Math.floor(minutes / 60);
     const mins = minutes % 60;
     const timeStr = `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
 
     try {
-      // Проверяем, свободен ли слот (с учётом длительности услуги)
-      const isFree = isTimeSlotFree(masterId, date, timeStr, durationMinutes);
-
-      if (isFree) {
+      if (isTimeSlotFree(masterId, date, timeStr, durationMinutes)) {
         slots.push(timeStr);
       }
     } catch (error) {
       console.error(`❌ Ошибка проверки слота ${timeStr}:`, error.message);
     }
   }
-
   return slots;
 }
-// ========== РАБОТА С ЗАПИСЯМИ ==========
 
-function getActiveBookingsByClient(clientId) {
-  const today = new Date().toISOString().split('T')[0];
-  return db
-    .prepare(
-      `
-    SELECT b.*, s.name as service_name, m.name as master_name, br.name as branch_name, br.address as branch_address
-    FROM bookings b
-    JOIN services s ON b.service_id = s.id
-    JOIN masters m ON b.master_id = m.id
-    
-    WHERE b.client_id = ? 
-      AND b.booking_date >= ?
-      AND b.status = 'confirmed'
-    ORDER BY b.booking_date ASC, b.booking_time ASC
-  `
-    )
-    .all(clientId, today);
-}
-
-function getPastBookingsByClient(clientId) {
-  const today = new Date().toISOString().split('T')[0];
-  return db
-    .prepare(
-      `
-    SELECT b.*, s.name as service_name, m.name as master_name, br.name as branch_name, br.address as branch_address
-    FROM bookings b
-    JOIN services s ON b.service_id = s.id
-    JOIN masters m ON b.master_id = m.id
-    
-    WHERE b.client_id = ? 
-      AND (b.booking_date < ? OR b.status = 'cancelled')
-    ORDER BY b.booking_date DESC, b.booking_time DESC
-    LIMIT 10
-  `
-    )
-    .all(clientId, today);
-}
-
-function cancelBooking(bookingId, clientId) {
-  const result = db
-    .prepare(
-      `
-    UPDATE bookings 
-    SET status = 'cancelled' 
-    WHERE id = ? AND client_id = ? AND status = 'confirmed'
-  `
-    )
-    .run(bookingId, clientId);
-  return result.changes > 0;
-}
-
-function getBookingById(bookingId) {
-  return db
-    .prepare(
-      `
-    SELECT b.*, s.name as service_name, m.name as master_name, br.name as branch_name, br.address as branch_address
-    FROM bookings b
-    JOIN services s ON b.service_id = s.id
-    JOIN masters m ON b.master_id = m.id
-    
-    WHERE b.id = ?
-  `
-    )
-    .get(bookingId);
-}
 // ========== АДМИН-ПАНЕЛЬ ==========
 
 function getTodayBookings() {
-  const today = new Date().toISOString().split('T')[0];
   return db
     .prepare(
       `
-    SELECT b.*, 
-           s.name as service_name, 
-           m.name as master_name, 
-           br.name as branch_name,
-           c.name as client_name, 
-           c.phone as client_phone
+    SELECT b.*, m.name as master_name, s.name as service_name
     FROM bookings b
-    JOIN services s ON b.service_id = s.id
     JOIN masters m ON b.master_id = m.id
-    
-    JOIN clients c ON b.client_id = c.id
-    WHERE b.booking_date = ?
-    ORDER BY b.booking_time ASC
+    JOIN services s ON b.service_id = s.id
+    WHERE b.booking_date = date('now')
+    ORDER BY b.booking_time
   `
     )
-    .all(today);
+    .all();
 }
 
 function getBookingsByDate(date) {
   return db
     .prepare(
       `
-    SELECT b.*, 
-           s.name as service_name, 
-           m.name as master_name, 
-           br.name as branch_name,
-           c.name as client_name, 
-           c.phone as client_phone
+    SELECT b.*, m.name as master_name, s.name as service_name
     FROM bookings b
-    JOIN services s ON b.service_id = s.id
     JOIN masters m ON b.master_id = m.id
-    
-    JOIN clients c ON b.client_id = c.id
+    JOIN services s ON b.service_id = s.id
     WHERE b.booking_date = ?
-    ORDER BY b.booking_time ASC
+    ORDER BY b.booking_time
   `
     )
     .all(date);
 }
 
-function getStats() {
-  const today = new Date().toISOString().split('T')[0];
-  const monthStart = today.substring(0, 7) + '-01';
-
-  // Всего записей сегодня
-  const todayCount = db
-    .prepare(
-      `
-    SELECT COUNT(*) as count FROM bookings 
-    WHERE booking_date = ? AND status = 'confirmed'
-  `
-    )
-    .get(today);
-
-  // Всего записей в этом месяце
-  const monthCount = db
-    .prepare(
-      `
-    SELECT COUNT(*) as count FROM bookings 
-    WHERE booking_date >= ? AND status = 'confirmed'
-  `
-    )
-    .get(monthStart);
-
-  // Всего клиентов
-  const clientsCount = db
-    .prepare(
-      `
-    SELECT COUNT(*) as count FROM clients
-  `
-    )
-    .get();
-
-  // Топ мастеров за месяц
-  const topMasters = db
-    .prepare(
-      `
-    SELECT m.name, COUNT(b.id) as bookings_count
-    FROM bookings b
-    JOIN masters m ON b.master_id = m.id
-    WHERE b.booking_date >= ? AND b.status = 'confirmed'
-    GROUP BY m.id
-    ORDER BY bookings_count DESC
-    LIMIT 5
-  `
-    )
-    .all(monthStart);
-
-  // Топ услуг за месяц
-  const topServices = db
-    .prepare(
-      `
-    SELECT s.name, COUNT(b.id) as bookings_count
-    FROM bookings b
-    JOIN services s ON b.service_id = s.id
-    WHERE b.booking_date >= ? AND b.status = 'confirmed'
-    GROUP BY s.id
-    ORDER BY bookings_count DESC
-    LIMIT 5
-  `
-    )
-    .all(monthStart);
-
-  // Топ филиалов за месяц
-  const topBranches = db
-    .prepare(
-      `
-    SELECT br.name, COUNT(b.id) as bookings_count
-    FROM bookings b
-    
-    WHERE b.booking_date >= ? AND b.status = 'confirmed'
-    GROUP BY br.id
-    ORDER BY bookings_count DESC
-  `
-    )
-    .all(monthStart);
-
-  return {
-    todayCount: todayCount.count,
-    monthCount: monthCount.count,
-    clientsCount: clientsCount.count,
-    topMasters,
-    topServices,
-    topBranches,
-  };
-}
-
-function updateBookingStatus(bookingId, status) {
-  const result = db
-    .prepare(
-      `
-    UPDATE bookings SET status = ? WHERE id = ?
-  `
-    )
-    .run(status, bookingId);
-  return result.changes > 0;
-}
-function getAllBookings(filters = {}) {
-  let query = `
-    SELECT b.*, 
-           s.name as service_name, 
-           m.name as master_name, 
-           br.name as branch_name,
-           c.name as client_name, 
-           c.phone as client_phone
-    FROM bookings b
-    JOIN services s ON b.service_id = s.id
-    JOIN masters m ON b.master_id = m.id
-    
-    JOIN clients c ON b.client_id = c.id
-    WHERE 1=1
-  `;
-
-  const params = [];
-
-  // Фильтр по дате
-  if (filters.date) {
-    query += ` AND b.booking_date = ?`;
-    params.push(filters.date);
-  }
-
-  // Фильтр по мастеру
-  if (filters.master_id) {
-    query += ` AND b.master_id = ?`;
-    params.push(filters.master_id);
-  }
-
-  // Фильтр по филиалу
-  if (filters.branch_id) {
-    query += ` AND b.branch_id = ?`;
-    params.push(filters.branch_id);
-  }
-
-  // Фильтр по статусу
-  if (filters.status) {
-    query += ` AND b.status = ?`;
-    params.push(filters.status);
-  }
-
-  // Поиск по имени или телефону
-  if (filters.search) {
-    query += ` AND (c.name LIKE ? OR c.phone LIKE ?)`;
-    const searchPattern = `%${filters.search}%`;
-    params.push(searchPattern, searchPattern);
-  }
-
-  query += ` ORDER BY b.booking_date DESC, b.booking_time DESC LIMIT 50`;
-
-  return db.prepare(query).all(...params);
-}
-
-function getMasters() {
-  return db.prepare(`SELECT * FROM masters ORDER BY name`).all();
-}
-function getBookingWithClient(bookingId) {
+function getStats(startDate, endDate) {
   return db
     .prepare(
       `
     SELECT 
-      b.id, b.booking_date, b.booking_time, b.status,
-      c.name as client_name, c.phone as client_phone, c.user_id,
-      m.name as master_name, s.name as service_name, ms.price as service_price,
-      br.name as branch_name
+      COUNT(*) as total_bookings,
+      COUNT(CASE WHEN status = 'confirmed' THEN 1 END) as confirmed,
+      COUNT(CASE WHEN status = 'completed' THEN 1 END) as completed,
+      COUNT(CASE WHEN status = 'cancelled' THEN 1 END) as cancelled,
+      SUM(CASE WHEN status = 'completed' THEN ms.price ELSE 0 END) as revenue
     FROM bookings b
-    JOIN clients c ON b.client_id = c.id
+    LEFT JOIN master_services ms ON ms.master_id = b.master_id AND ms.service_id = b.service_id
+    WHERE b.booking_date BETWEEN ? AND ?
+  `
+    )
+    .get(startDate, endDate);
+}
+
+function updateBookingStatus(bookingId, status) {
+  const result = db.prepare('UPDATE bookings SET status = ? WHERE id = ?').run(status, bookingId);
+  return result.changes > 0;
+}
+
+function getAllBookings(filters = {}) {
+  let query = `
+    SELECT b.*, m.name as master_name, s.name as service_name
+    FROM bookings b
     JOIN masters m ON b.master_id = m.id
     JOIN services s ON b.service_id = s.id
-    JOIN master_services ms ON b.master_id = ms.master_id AND b.service_id = ms.service_id
-    
+    WHERE 1=1
+  `;
+  const params = [];
+
+  if (filters.date) {
+    query += ' AND b.booking_date = ?';
+    params.push(filters.date);
+  }
+  if (filters.master_id) {
+    query += ' AND b.master_id = ?';
+    params.push(filters.master_id);
+  }
+  if (filters.status) {
+    query += ' AND b.status = ?';
+    params.push(filters.status);
+  }
+  if (filters.search) {
+    query += ' AND (b.client_name LIKE ? OR b.client_phone LIKE ?)';
+    params.push(`%${filters.search}%`, `%${filters.search}%`);
+  }
+
+  query += ' ORDER BY b.booking_date DESC, b.booking_time DESC';
+  return db.prepare(query).all(...params);
+}
+
+function getBookingWithClient(bookingId) {
+  return db
+    .prepare(
+      `
+    SELECT b.*, m.name as master_name, s.name as service_name, s.price_min as base_price
+    FROM bookings b
+    JOIN masters m ON b.master_id = m.id
+    JOIN services s ON b.service_id = s.id
     WHERE b.id = ?
   `
     )
@@ -684,11 +408,7 @@ function getBookingWithClient(bookingId) {
 function updateBookingDateTime(bookingId, newDate, newTime) {
   const result = db
     .prepare(
-      `
-    UPDATE bookings 
-    SET booking_date = ?, booking_time = ?
-    WHERE id = ? AND status = 'confirmed'
-  `
+      "UPDATE bookings SET booking_date = ?, booking_time = ? WHERE id = ? AND status = 'confirmed'"
     )
     .run(newDate, newTime, bookingId);
   return result.changes > 0;
@@ -697,31 +417,23 @@ function updateBookingDateTime(bookingId, newDate, newTime) {
 function getFreeSlotsForReschedule(masterId, serviceId, date, excludeBookingId = null) {
   const service = db.prepare('SELECT duration_minutes FROM services WHERE id = ?').get(serviceId);
   if (!service) return [];
-
   const duration = service.duration_minutes;
 
-  // Получаем все записи мастера на эту дату (кроме текущей)
-  let query = `
-    SELECT booking_time FROM bookings
-    WHERE master_id = ? AND booking_date = ? AND status = 'confirmed'
-  `;
+  let query =
+    "SELECT booking_time FROM bookings WHERE master_id = ? AND booking_date = ? AND status = 'confirmed'";
   const params = [masterId, date];
-
   if (excludeBookingId) {
-    query += ` AND id != ?`;
+    query += ' AND id != ?';
     params.push(excludeBookingId);
   }
 
   const bookedSlots = db.prepare(query).all(...params);
   const bookedTimes = bookedSlots.map((b) => b.booking_time);
-
-  // Генерируем все возможные слоты (с 10:00 до 20:00)
   const allSlots = [];
+
   for (let hour = 10; hour < 20; hour++) {
     for (let min = 0; min < 60; min += 30) {
       const time = `${String(hour).padStart(2, '0')}:${String(min).padStart(2, '0')}`;
-
-      // Проверяем, не пересекается ли с занятыми
       const [h, m] = time.split(':').map(Number);
       const startMinutes = h * 60 + m;
       const endMinutes = startMinutes + duration;
@@ -731,184 +443,72 @@ function getFreeSlotsForReschedule(masterId, serviceId, date, excludeBookingId =
         const [bh, bm] = booked.split(':').map(Number);
         const bookedStart = bh * 60 + bm;
         const bookedEnd = bookedStart + duration;
-
         if (startMinutes < bookedEnd && endMinutes > bookedStart) {
           conflict = true;
           break;
         }
       }
-
-      if (!conflict && endMinutes <= 20 * 60) {
-        allSlots.push(time);
-      }
+      if (!conflict && endMinutes <= 20 * 60) allSlots.push(time);
     }
   }
-
   return allSlots;
 }
 
-// ========== УПРАВЛЕНИЕ МАСТЕРАМИ ==========
+// ========== УПРАВЛЕНИЕ МАСТЕРАМИ И УСЛУГАМИ ==========
 
-// Получить список всех мастеров
 function getMastersList() {
-  return db
-    .prepare(
-      `
-    SELECT * FROM masters 
-    ORDER BY is_active DESC, name
-  `
-    )
-    .all();
+  return db.prepare('SELECT * FROM masters ORDER BY is_active DESC, name').all();
 }
 
-// Добавить нового мастера
+function getMasterById(masterId) {
+  return db.prepare('SELECT * FROM masters WHERE id = ?').get(masterId);
+}
+
+function toggleMasterActive(masterId) {
+  const master = db.prepare('SELECT is_active FROM masters WHERE id = ?').get(masterId);
+  if (!master) return false;
+  const newStatus = master.is_active ? 0 : 1;
+  db.prepare('UPDATE masters SET is_active = ? WHERE id = ?').run(newStatus, masterId);
+  return true;
+}
+
+function updateMaster(masterId, name, specialty, experience, description, photo_url) {
+  const result = db
+    .prepare(
+      `
+    UPDATE masters SET name = ?, specialty = ?, experience = ?, description = ?, photo_url = ? WHERE id = ?
+  `
+    )
+    .run(name, specialty, experience, description, photo_url, masterId);
+  return result.changes > 0;
+}
+
 function createMaster(name, specialty, experience = 0, description = '', photo_url = null) {
   const result = db
     .prepare(
       `
-    INSERT INTO masters (name, specialty, experience, description, photo_url, is_active)
-    VALUES (?, ?, ?, ?, ?, 1)
+    INSERT INTO masters (name, specialty, experience, description, photo_url, is_active) VALUES (?, ?, ?, ?, ?, 1)
   `
     )
     .run(name, specialty, experience, description, photo_url);
   return result.lastInsertRowid;
 }
 
-// Обновить мастера
-function updateMaster(masterId, name, specialty, experience, description) {
-  db.prepare(
-    `
-    UPDATE masters 
-    SET name = ?, specialty = ?, experience = ?, description = ?
-    WHERE id = ?
-  `
-  ).run(name, specialty, experience, description, masterId);
-}
-
-// Деактивировать/активировать мастера
-function toggleMasterActive(masterId) {
-  db.prepare(
-    `UPDATE masters SET is_active = CASE WHEN is_active = 1 THEN 0 ELSE 1 END WHERE id = ?`
-  ).run(masterId);
-}
-
-// Получить мастера по ID
-function getMasterById(masterId) {
-  return db
-    .prepare(
-      `
-    SELECT m.*, b.name as branch_name 
-    FROM masters m 
-    
-    WHERE m.id = ?
-  `
-    )
-    .get(masterId);
-}
-
-// ========== УПРАВЛЕНИЕ УСЛУГАМИ ==========
-
-// Получить список всех услуг
 function getServicesList() {
-  return db
-    .prepare(
-      `
-    SELECT * FROM services 
-    ORDER BY is_active DESC, category, name
-  `
-    )
-    .all();
+  return db.prepare('SELECT * FROM services ORDER BY is_active DESC, category, name').all();
 }
 
-// Добавить новую услугу
-function createService(name, category, priceMin, priceMax, durationMinutes, description = null) {
-  const result = db
-    .prepare(
-      `
-    INSERT INTO services (name, category, price_min, price_max, duration_minutes, description)
-    VALUES (?, ?, ?, ?, ?, ?)
-  `
-    )
-    .run(name, category, priceMin, priceMax, durationMinutes, description);
-  return result.lastInsertRowid;
-}
-
-// Обновить услугу
-function updateService(
-  serviceId,
-  name,
-  category,
-  priceMin,
-  priceMax,
-  durationMinutes,
-  description
-) {
-  db.prepare(
-    `
-    UPDATE services 
-    SET name = ?, category = ?, price_min = ?, price_max = ?, duration_minutes = ?, description = ?
-    WHERE id = ?
-  `
-  ).run(name, category, priceMin, priceMax, durationMinutes, description, serviceId);
-}
-
-// Деактивировать/активировать услугу
-function toggleServiceActive(serviceId) {
-  db.prepare(
-    `UPDATE services SET is_active = CASE WHEN is_active = 1 THEN 0 ELSE 1 END WHERE id = ?`
-  ).run(serviceId);
-}
-
-// Получить услугу по ID
-function getServiceById(serviceId) {
-  return db.prepare('SELECT * FROM services WHERE id = ?').get(serviceId);
-}
-
-// Добавить нового мастера
-function createMaster(
-  branchId,
-  name,
-  specialty,
-  experience = 0,
-  description = '',
-  photo_url = null
-) {
-  const result = db
-    .prepare(
-      `
-    INSERT INTO masters (name, specialty, experience, description, photo_url, is_active)
-    VALUES (?, ?, ?, ?, ?, ?, 1)
-  `
-    )
-    .run(branchId, name, specialty, experience, description, photo_url);
-  return result.lastInsertRowid;
-}
-
-// Обновить мастера
-function updateMaster(masterId, branchId, name, specialty, experience, description, photo_url) {
-  db.prepare(
-    `
-    UPDATE masters 
-    SET name = ?, specialty = ?, experience = ?, description = ?, photo_url = ?
-    WHERE id = ?
-  `
-  ).run(branchId, name, specialty, experience, description, photo_url, masterId);
-}
-
-// Добавить новую услугу
 function createService(name, category, priceMin, priceMax, durationMinutes, description = '') {
   const result = db
     .prepare(
       `
-    INSERT INTO services (name, category, price_min, price_max, duration_minutes, description, is_active)
-    VALUES (?, ?, ?, ?, ?, ?, 1)
+    INSERT INTO services (name, category, price_min, price_max, duration_minutes, description, is_active) VALUES (?, ?, ?, ?, ?, ?, 1)
   `
     )
     .run(name, category, priceMin, priceMax, durationMinutes, description);
   return result.lastInsertRowid;
 }
 
-// Обновить услугу
 function updateService(
   serviceId,
   name,
@@ -920,30 +520,28 @@ function updateService(
 ) {
   db.prepare(
     `
-    UPDATE services 
-    SET name = ?, category = ?, price_min = ?, price_max = ?, duration_minutes = ?, description = ?
-    WHERE id = ?
+    UPDATE services SET name = ?, category = ?, price_min = ?, price_max = ?, duration_minutes = ?, description = ? WHERE id = ?
   `
   ).run(name, category, priceMin, priceMax, durationMinutes, description, serviceId);
 }
-// ========== СВЯЗЬ МАСТЕРОВ И УСЛУГ ==========
 
-// Получить список услуг мастера (с информацией о привязке)
+function toggleServiceActive(serviceId) {
+  db.prepare(
+    'UPDATE services SET is_active = CASE WHEN is_active = 1 THEN 0 ELSE 1 END WHERE id = ?'
+  ).run(serviceId);
+}
+
+function getServiceById(serviceId) {
+  return db.prepare('SELECT * FROM services WHERE id = ?').get(serviceId);
+}
+
 function getMasterServicesWithStatus(masterId) {
   return db
     .prepare(
       `
-    SELECT 
-      s.id,
-      s.name,
-      s.category,
-      s.price_min,
-      s.price_max,
-      s.duration_minutes,
-      s.is_active,
-      ms.price as master_price,
-      ms.duration_minutes as master_duration,
-      CASE WHEN ms.id IS NOT NULL THEN 1 ELSE 0 END as is_attached
+    SELECT s.id, s.name, s.category, s.price_min, s.price_max, s.duration_minutes, s.is_active,
+           ms.price as master_price, ms.duration_minutes as master_duration,
+           CASE WHEN ms.id IS NOT NULL THEN 1 ELSE 0 END as is_attached
     FROM services s
     LEFT JOIN master_services ms ON ms.service_id = s.id AND ms.master_id = ?
     WHERE s.is_active = 1
@@ -953,81 +551,61 @@ function getMasterServicesWithStatus(masterId) {
     .all(masterId);
 }
 
-// Привязать услугу к мастеру (берем базовые цену и длительность из services)
 function attachServiceToMaster(masterId, serviceId) {
-  // Получаем базовые данные услуги
   const service = db
     .prepare('SELECT price_min, duration_minutes FROM services WHERE id = ?')
     .get(serviceId);
   if (!service) return false;
-
-  // Проверяем, не привязана ли уже
   const existing = db
     .prepare('SELECT id FROM master_services WHERE master_id = ? AND service_id = ?')
     .get(masterId, serviceId);
-
-  if (existing) return false; // Уже привязана
-
+  if (existing) return false;
   db.prepare(
-    `
-    INSERT INTO master_services (master_id, service_id, price, duration_minutes)
-    VALUES (?, ?, ?, ?)
-  `
+    'INSERT INTO master_services (master_id, service_id, price, duration_minutes) VALUES (?, ?, ?, ?)'
   ).run(masterId, serviceId, service.price_min, service.duration_minutes);
-
   return true;
 }
 
-// Отвязать услугу от мастера
 function detachServiceFromMaster(masterId, serviceId) {
   const result = db
     .prepare('DELETE FROM master_services WHERE master_id = ? AND service_id = ?')
     .run(masterId, serviceId);
   return result.changes > 0;
 }
+
+// ========== ЭКСПОРТ ==========
 module.exports = {
   db,
-
-  // Базовые данные
   getMasters,
   getMaster,
   getServicesByMaster,
   getService,
-
-  // Записи и расписание
-  getFreeTimeSlots,
-  getOrCreateClient,
+  getMasterSchedule,
   createBooking,
   getActiveBookingsByClient,
   getPastBookingsByClient,
   cancelBooking,
   getBookingById,
+  isTimeSlotFree,
+  getFreeTimeSlots,
+  getTodayBookings,
+  getBookingsByDate,
+  getStats,
+  updateBookingStatus,
+  getAllBookings,
   getBookingWithClient,
   updateBookingDateTime,
   getFreeSlotsForReschedule,
-
-  // Админка: Списки и статистика
-  getTodayBookings,
-  getBookingsByDate,
-  getAllBookings,
-  getStats,
-  updateBookingStatus,
-
-  // Админка: Управление мастерами
   getMastersList,
-  createMaster,
-  updateMaster,
-  toggleMasterActive,
   getMasterById,
-
-  // Админка: Управление услугами
+  toggleMasterActive,
+  updateMaster,
+  createMaster,
   getServicesList,
   createService,
   updateService,
   toggleServiceActive,
   getServiceById,
-
-  // Админка: Привязка услуг к мастеру
   getMasterServicesWithStatus,
   attachServiceToMaster,
   detachServiceFromMaster,
