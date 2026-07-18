@@ -37,7 +37,10 @@ app.get('/docs/terms.html', (req, res) => {
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
-
+// Отдаем index.html для любого неизвестного маршрута (для SPA-роутинга)
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
 // Запуск сервера
 app.listen(PORT, () => {
   console.log(`\n Веб-сервер запущен на http://localhost:${PORT}`);

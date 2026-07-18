@@ -8,8 +8,36 @@ let state = {
 };
 
 // Инициализация
-document.addEventListener('DOMContentLoaded', () => {
-  loadBranches();
+document.addEventListener('DOMContentLoaded', async () => {
+  // Сначала загружаем филиалы
+  await loadBranches();
+
+  // Проверяем URL на наличие слага филиала (например, "/central")
+  const path = window.location.pathname.replace(/\//g, ''); // убираем все слеши
+
+  if (path && path !== '') {
+    // Ищем филиал с таким slug в уже загруженных данных
+    // Примечание: нам нужно немного доработать loadBranches, чтобы он сохранял данные,
+    // или сделать повторный запрос. Проще всего найти его по slug через API.
+
+    try {
+      const response = await fetch('/api/branches');
+      const { success, data } = await response.json();
+
+      if (success) {
+        const targetBranch = data.find((b) => b.slug === path);
+
+        if (targetBranch) {
+          console.log(`🎯 Автовыбор филиала по URL: ${targetBranch.name}`);
+          selectBranch(targetBranch.id);
+        } else {
+          console.warn(`⚠️ Филиал с slug "${path}" не найден, показываем выбор`);
+        }
+      }
+    } catch (error) {
+      console.error('Ошибка при автовыборе филиала:', error);
+    }
+  }
 });
 
 // Загрузка филиалов
