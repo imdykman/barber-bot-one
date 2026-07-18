@@ -481,6 +481,25 @@ async function handleCallback(ctx, data, userId, { userStates }) {
     await handleToggleService(ctx, serviceId);
     return true;
   }
+  // --- ДОБАВЛЕНИЕ МАСТЕРА ---
+  if (data === 'admin_add_master') {
+    if (!checkAccess(ctx, userId)) return true;
+    await startAddMaster(ctx, userId, userStates);
+    return true;
+  }
+  if (data.startsWith('add_master_branch_')) {
+    if (!checkAccess(ctx, userId)) return true;
+    const branchId = parseInt(data.replace('add_master_branch_', ''));
+    await handleAddMasterBranch(ctx, userId, branchId, userStates);
+    return true;
+  }
+
+  // --- ДОБАВЛЕНИЕ УСЛУГИ ---
+  if (data === 'admin_add_service') {
+    if (!checkAccess(ctx, userId)) return true;
+    await startAddService(ctx, userId, userStates);
+    return true;
+  }
   return false;
 }
 

@@ -71,9 +71,15 @@ async function handleToggleService(ctx, serviceId) {
   await ctx.reply('✅ Статус услуги успешно изменён');
   await showServiceDetails(ctx, serviceId);
 }
+// Начать добавление услуги
+async function startAddService(ctx, userId, userStates) {
+  userStates.set(userId, { mode: 'admin_add_service_name' });
+  await ctx.reply('➕ *Добавление услуги*\n\nВведите название услуги (например: Мужская стрижка):');
+}
 
 module.exports = {
   showServicesList,
   showServiceDetails,
   handleToggleService,
+  startAddService,
 };

@@ -887,6 +887,69 @@ function toggleServiceActive(serviceId) {
 function getServiceById(serviceId) {
   return db.prepare('SELECT * FROM services WHERE id = ?').get(serviceId);
 }
+
+// Добавить нового мастера
+function createMaster(
+  branchId,
+  name,
+  specialty,
+  experience = 0,
+  description = '',
+  photo_url = null
+) {
+  const result = db
+    .prepare(
+      `
+    INSERT INTO masters (branch_id, name, specialty, experience, description, photo_url, is_active)
+    VALUES (?, ?, ?, ?, ?, ?, 1)
+  `
+    )
+    .run(branchId, name, specialty, experience, description, photo_url);
+  return result.lastInsertRowid;
+}
+
+// Обновить мастера
+function updateMaster(masterId, branchId, name, specialty, experience, description, photo_url) {
+  db.prepare(
+    `
+    UPDATE masters 
+    SET branch_id = ?, name = ?, specialty = ?, experience = ?, description = ?, photo_url = ?
+    WHERE id = ?
+  `
+  ).run(branchId, name, specialty, experience, description, photo_url, masterId);
+}
+
+// Добавить новую услугу
+function createService(name, category, priceMin, priceMax, durationMinutes, description = '') {
+  const result = db
+    .prepare(
+      `
+    INSERT INTO services (name, category, price_min, price_max, duration_minutes, description, is_active)
+    VALUES (?, ?, ?, ?, ?, ?, 1)
+  `
+    )
+    .run(name, category, priceMin, priceMax, durationMinutes, description);
+  return result.lastInsertRowid;
+}
+
+// Обновить услугу
+function updateService(
+  serviceId,
+  name,
+  category,
+  priceMin,
+  priceMax,
+  durationMinutes,
+  description
+) {
+  db.prepare(
+    `
+    UPDATE services 
+    SET name = ?, category = ?, price_min = ?, price_max = ?, duration_minutes = ?, description = ?
+    WHERE id = ?
+  `
+  ).run(name, category, priceMin, priceMax, durationMinutes, description, serviceId);
+}
 module.exports = {
   db,
   getBranches,
@@ -924,4 +987,8 @@ module.exports = {
   updateService,
   toggleServiceActive,
   getServiceById,
+  createMaster,
+  updateMaster,
+  createService,
+  updateService,
 };

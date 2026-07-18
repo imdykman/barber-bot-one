@@ -66,8 +66,40 @@ async function handleToggleMaster(ctx, masterId) {
   await showMasterDetails(ctx, masterId);
 }
 
+// Начать добавление мастера
+async function startAddMaster(ctx, userId, userStates) {
+  userStates.set(userId, { mode: 'admin_add_master_name' });
+  await ctx.reply('➕ *Добавление мастера*\n\nВведите имя мастера:');
+}
+
+// Обработка выбора филиала при добавлении
+async function handleAddMasterBranch(ctx, userId, branchId, userStates) {
+  const state = userStates.get(userId) || {};
+
+  const newMasterId = createMaster(
+    branchId,
+    state.temp_name,
+    state.temp_specialty,
+    state.temp_experience,
+    '', // description
+    null // photo_url (можно добавить позже)
+  );
+
+  userStates.delete(userId); // Очищаем состояние
+
+  await ctx.reply(`✅ Мастер *${state.temp_name}* успешно добавлен!`, {
+    attachments: [
+      Keyboard.inlineKeyboard([
+        [Keyboard.button.callback('⬅️ К списку мастеров', 'admin_masters')],
+      ]),
+    ],
+  });
+}
+
 module.exports = {
   showMastersList,
   showMasterDetails,
   handleToggleMaster,
+  startAddMaster,
+  handleAddMasterBranch,
 };

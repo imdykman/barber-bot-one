@@ -5,6 +5,84 @@ const { showAllBookings } = require('../handlers/admin/all-bookings');
 const { confirmBooking } = require('../handlers/client/booking');
 
 async function handleMessage(ctx, text, userId, { userStates, getUserId }) {
+  // 🆕 ПРОВЕРКА: Если это админ и он в режиме добавления/редактирования
+  if (isAdmin(userId)) {
+    const state = userStates.get(userId) || {};
+
+    // --- ДОБАВЛЕНИЕ МАСТЕРА ---
+    if (state.mode === 'admin_add_master_name') {
+      state.temp_name = text;
+      state.mode = 'admin_add_master_specialty';
+      userStates.set(userId, state);
+      await ctx.reply('💇 Введите специализацию мастера (например: Парикмахер-универсал):');
+      return;
+    }
+    if (state.mode === 'admin_add_master_specialty') {
+      state.temp_specialty = text;
+      state.mode = 'admin_add_master_experience';
+      userStates.set(userId, state);
+      await ctx.reply('📅 Введите опыт работы в годах (число, например: 5):');
+      return;
+    }
+    if (state.mode === 'admin_add_master_experience') {
+      const exp = parseInt(text) || 0;
+      state.temp_experience = exp;
+      state.mode = 'admin_add_master_branch';
+      userStates.set(userId, state);
+
+      // Показываем кнопки филиалов
+      const { getBranches } = require('../database/database');
+      const { Keyboard } = require('@maxhub/max-bot-api');
+      const branches = getBranches();
+      const buttons = branches.map((b) => [
+        Keyboard.button.callback(b.name, `add_master_branch_${b.id}`),
+      ]);
+      await ctx.reply('🏢 Выберите филиал для мастера:', {
+        attachments: [Keyboard.inlineKeyboard(buttons)],
+      });
+      return;
+    }
+
+    // --- ДОБАВЛЕНИЕ УСЛУГИ ---
+    if (state.mode === 'admin_add_service_name') {
+      state.temp_name = text;
+      state.mode = 'admin_add_service_category';
+      userStates.set(userId, state);
+      await ctx.reply('📂 Введите категорию услуги (например: Стрижки, Окрашивание):');
+      return;
+    }
+    if (state.mode === 'admin_add_service_category') {
+      state.temp_category = text;
+      state.mode = 'admin_add_service_price';
+      userStates.set(userId, state);
+      await ctx.reply('💰 Введите минимальную цену услуги (число, например: 1500):');
+      return;
+    }
+    if (state.mode === 'admin_add_service_price') {
+      state.temp_price_min = parseInt(text) || 0;
+      state.mode = 'admin_add_service_duration';
+      userStates.set(userId, state);
+      await ctx.reply('⏱️ Введите длительность услуги в минутах (число, например: 60):');
+      return;
+    }
+    if (state.mode === 'admin_add_service_duration') {
+      const duration = parseInt(text) || 60;
+      const { createService } = require('../database/database');
+
+      createService(state.temp_name, state.temp_category, state.temp_price_min, 0, duration, '');
+      userStates.delete(userId); // Очищаем состояние
+
+      await ctx.reply(`✅ Услуга "*${state.temp_name}*" успешно добавлена!`, {
+        attachments: [
+          Keyboard.inlineKeyboard([
+            [Keyboard.button.callback('⬅️ В меню услуг', 'admin_services')],
+          ]),
+        ],
+      });
+      return;
+    }
+  }
+
   const state = userStates.get(userId);
 
   // Поиск в админке
