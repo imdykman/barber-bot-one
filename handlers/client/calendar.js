@@ -18,9 +18,6 @@ async function showCalendar(ctx, userId, userStates) {
     const date = new Date(today);
     date.setDate(today.getDate() + i);
 
-    // Пропускаем воскресенье (0)
-    if (date.getDay() === 0) continue;
-
     dates.push({
       date: date,
       dateStr: date.toISOString().split('T')[0], // YYYY-MM-DD
