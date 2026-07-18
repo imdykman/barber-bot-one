@@ -68,10 +68,15 @@ async function handleToggleMaster(ctx, masterId) {
 
 // Начать добавление мастера
 async function startAddMaster(ctx, userId, userStates) {
-  userStates.set(userId, { mode: 'admin_add_master_name' });
-  await ctx.reply('➕ *Добавление мастера*\n\nВведите имя мастера:');
-}
+  console.log(`🚀 [DEBUG] Вызвана startAddMaster для userId: ${userId}`);
 
+  // Устанавливаем режим ожидания имени
+  userStates.set(userId, { mode: 'admin_add_master_name' });
+  console.log(`💾 [DEBUG] Состояние сохранено:`, userStates.get(userId));
+
+  await ctx.reply('➕ *Добавление мастера*\n\nВведите имя мастера:');
+  console.log(`📤 [DEBUG] Сообщение "Введите имя мастера" отправлено`);
+}
 // Обработка выбора филиала при добавлении
 async function handleAddMasterBranch(ctx, userId, branchId, userStates) {
   const state = userStates.get(userId) || {};

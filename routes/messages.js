@@ -5,6 +5,97 @@ const { showAllBookings } = require('../handlers/admin/all-bookings');
 const { confirmBooking } = require('../handlers/client/booking');
 
 async function handleMessage(ctx, text, userId, { userStates, getUserId }) {
+  // 🆕 ПРОВЕРКА АДМИНА В САМОМ НАЧАЛЕ
+  if (isAdmin(userId)) {
+    console.log(`👑 [DEBUG] Пользователь ${userId} является админом`);
+    const state = userStates.get(userId) || {};
+    console.log(`📦 [DEBUG] Текущее состояние (state) админа:`, state);
+
+    if (state.mode === 'admin_add_master_name') {
+      console.log(`✅ [DEBUG] Сработал режим admin_add_master_name! Сохраняем имя: "${text}"`);
+      state.temp_name = text;
+      state.mode = 'admin_add_master_specialty';
+      userStates.set(userId, state);
+
+      await ctx.reply('💇 Введите специализацию мастера (например: Парикмахер-универсал):');
+      return; // ВАЖНО: прерываем выполнение, чтобы не пошло дальше к клиентской логике
+    }
+
+    if (state.mode === 'admin_add_master_specialty') {
+      console.log(`✅ [DEBUG] Сработал режим admin_add_master_specialty! Сохраняем: "${text}"`);
+      state.temp_specialty = text;
+      state.mode = 'admin_add_master_experience';
+      userStates.set(userId, state);
+      await ctx.reply('📅 Введите опыт работы в годах (число, например: 5):');
+      return;
+    }
+
+    if (state.mode === 'admin_add_master_experience') {
+      console.log(`✅ [DEBUG] Сработал режим admin_add_master_experience! Сохраняем: "${text}"`);
+      state.temp_experience = parseInt(text) || 0;
+      state.mode = 'admin_add_master_branch';
+      userStates.set(userId, state);
+
+      const { getBranches } = require('../database/database');
+      const { Keyboard } = require('@maxhub/max-bot-api');
+      const branches = getBranches();
+      const buttons = branches.map((b) => [
+        Keyboard.button.callback(b.name, `add_master_branch_${b.id}`),
+      ]);
+
+      await ctx.reply('🏢 Выберите филиал для мастера:', {
+        attachments: [Keyboard.inlineKeyboard(buttons)],
+      });
+      return;
+    }
+
+    // --- ДОБАВЛЕНИЕ УСЛУГИ (аналогично) ---
+    if (state.mode === 'admin_add_service_name') {
+      console.log(`✅ [DEBUG] Сработал режим admin_add_service_name! Сохраняем: "${text}"`);
+      state.temp_name = text;
+      state.mode = 'admin_add_service_category';
+      userStates.set(userId, state);
+      await ctx.reply('📂 Введите категорию услуги (например: Стрижки):');
+      return;
+    }
+
+    if (state.mode === 'admin_add_service_category') {
+      console.log(`✅ [DEBUG] Сработал режим admin_add_service_category! Сохраняем: "${text}"`);
+      state.temp_category = text;
+      state.mode = 'admin_add_service_price';
+      userStates.set(userId, state);
+      await ctx.reply('💰 Введите минимальную цену услуги (число, например: 1500):');
+      return;
+    }
+
+    if (state.mode === 'admin_add_service_price') {
+      console.log(`✅ [DEBUG] Сработал режим admin_add_service_price! Сохраняем: "${text}"`);
+      state.temp_price_min = parseInt(text) || 0;
+      state.mode = 'admin_add_service_duration';
+      userStates.set(userId, state);
+      await ctx.reply('⏱️ Введите длительность услуги в минутах (число, например: 60):');
+      return;
+    }
+
+    if (state.mode === 'admin_add_service_duration') {
+      console.log(`✅ [DEBUG] Сработал режим admin_add_service_duration! Сохраняем: "${text}"`);
+      const duration = parseInt(text) || 60;
+      const { createService } = require('../database/database');
+
+      createService(state.temp_name, state.temp_category, state.temp_price_min, 0, duration, '');
+      userStates.delete(userId); // Очищаем состояние
+
+      await ctx.reply(`✅ Услуга "*${state.temp_name}*" успешно добавлена!`, {
+        attachments: [
+          Keyboard.inlineKeyboard([
+            [Keyboard.button.callback('⬅️ В меню услуг', 'admin_services')],
+          ]),
+        ],
+      });
+      return;
+    }
+  }
+
   // 🆕 ПРОВЕРКА: Если это админ и он в режиме добавления/редактирования
   if (isAdmin(userId)) {
     const state = userStates.get(userId) || {};
