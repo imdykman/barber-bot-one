@@ -16,11 +16,14 @@ const {
   showMastersList,
   showMasterDetails,
   handleToggleMaster,
+  startAddMaster,
+  handleAddMasterBranch,
 } = require('../handlers/admin/masters');
 const {
   showServicesList,
   showServiceDetails,
   handleToggleService,
+  startAddService,
 } = require('../handlers/admin/services');
 
 // Проверка доступа
