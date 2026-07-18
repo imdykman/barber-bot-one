@@ -768,6 +768,125 @@ function getFreeSlotsForReschedule(masterId, serviceId, date, excludeBookingId =
 
   return allSlots;
 }
+
+// ========== УПРАВЛЕНИЕ МАСТЕРАМИ ==========
+
+// Получить список всех мастеров
+function getMastersList() {
+  return db
+    .prepare(
+      `
+    SELECT m.*, b.name as branch_name 
+    FROM masters m 
+    JOIN branches b ON m.branch_id = b.id 
+    ORDER BY m.is_active DESC, m.name
+  `
+    )
+    .all();
+}
+
+// Добавить нового мастера
+function createMaster(branchId, name, specialty, experience = 0, description = null) {
+  const result = db
+    .prepare(
+      `
+    INSERT INTO masters (branch_id, name, specialty, experience, description)
+    VALUES (?, ?, ?, ?, ?)
+  `
+    )
+    .run(branchId, name, specialty, experience, description);
+  return result.lastInsertRowid;
+}
+
+// Обновить мастера
+function updateMaster(masterId, name, specialty, experience, description) {
+  db.prepare(
+    `
+    UPDATE masters 
+    SET name = ?, specialty = ?, experience = ?, description = ?
+    WHERE id = ?
+  `
+  ).run(name, specialty, experience, description, masterId);
+}
+
+// Деактивировать/активировать мастера
+function toggleMasterActive(masterId) {
+  db.prepare(
+    `UPDATE masters SET is_active = CASE WHEN is_active = 1 THEN 0 ELSE 1 END WHERE id = ?`
+  ).run(masterId);
+}
+
+// Получить мастера по ID
+function getMasterById(masterId) {
+  return db
+    .prepare(
+      `
+    SELECT m.*, b.name as branch_name 
+    FROM masters m 
+    JOIN branches b ON m.branch_id = b.id 
+    WHERE m.id = ?
+  `
+    )
+    .get(masterId);
+}
+
+// ========== УПРАВЛЕНИЕ УСЛУГАМИ ==========
+
+// Получить список всех услуг
+function getServicesList() {
+  return db
+    .prepare(
+      `
+    SELECT * FROM services 
+    ORDER BY is_active DESC, category, name
+  `
+    )
+    .all();
+}
+
+// Добавить новую услугу
+function createService(name, category, priceMin, priceMax, durationMinutes, description = null) {
+  const result = db
+    .prepare(
+      `
+    INSERT INTO services (name, category, price_min, price_max, duration_minutes, description)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `
+    )
+    .run(name, category, priceMin, priceMax, durationMinutes, description);
+  return result.lastInsertRowid;
+}
+
+// Обновить услугу
+function updateService(
+  serviceId,
+  name,
+  category,
+  priceMin,
+  priceMax,
+  durationMinutes,
+  description
+) {
+  db.prepare(
+    `
+    UPDATE services 
+    SET name = ?, category = ?, price_min = ?, price_max = ?, duration_minutes = ?, description = ?
+    WHERE id = ?
+  `
+  ).run(name, category, priceMin, priceMax, durationMinutes, description, serviceId);
+}
+
+// Деактивировать/активировать услугу
+function toggleServiceActive(serviceId) {
+  db.prepare(
+    `UPDATE services SET is_active = CASE WHEN is_active = 1 THEN 0 ELSE 1 END WHERE id = ?`
+  ).run(serviceId);
+}
+
+// Получить услугу по ID
+function getServiceById(serviceId) {
+  return db.prepare('SELECT * FROM services WHERE id = ?').get(serviceId);
+}
 module.exports = {
   db,
   getBranches,
@@ -792,4 +911,17 @@ module.exports = {
   getBookingWithClient,
   updateBookingDateTime,
   getFreeSlotsForReschedule,
+  // Управление мастерами
+  getMastersList,
+  createMaster,
+  updateMaster,
+  toggleMasterActive,
+  getMasterById,
+
+  // Управление услугами
+  getServicesList,
+  createService,
+  updateService,
+  toggleServiceActive,
+  getServiceById,
 };

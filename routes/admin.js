@@ -12,6 +12,16 @@ const {
   applyReschedule,
 } = require('../handlers/admin/booking-details');
 const { getMasters, getBranches } = require('../database/database');
+const {
+  showMastersList,
+  showMasterDetails,
+  handleToggleMaster,
+} = require('../handlers/admin/masters');
+const {
+  showServicesList,
+  showServiceDetails,
+  handleToggleService,
+} = require('../handlers/admin/services');
 
 // Проверка доступа
 function checkAccess(ctx, userId) {
@@ -433,7 +443,37 @@ async function handleCallback(ctx, data, userId, { userStates }) {
     await applyReschedule(ctx, userId, time);
     return true;
   }
+  // ========== УПРАВЛЕНИЕ МАСТЕРАМИ ==========
+  if (data === 'admin_masters') {
+    await showMastersList(ctx);
+    return true;
+  }
+  if (data.startsWith('master_') && !data.startsWith('master_toggle_')) {
+    const masterId = parseInt(data.replace('master_', ''));
+    await showMasterDetails(ctx, masterId);
+    return true;
+  }
+  if (data.startsWith('toggle_master_')) {
+    const masterId = parseInt(data.replace('toggle_master_', ''));
+    await handleToggleMaster(ctx, masterId);
+    return true;
+  }
 
+  // ========== УПРАВЛЕНИЕ УСЛУГАМИ ==========
+  if (data === 'admin_services') {
+    await showServicesList(ctx);
+    return true;
+  }
+  if (data.startsWith('service_') && !data.startsWith('service_toggle_')) {
+    const serviceId = parseInt(data.replace('service_', ''));
+    await showServiceDetails(ctx, serviceId);
+    return true;
+  }
+  if (data.startsWith('toggle_service_')) {
+    const serviceId = parseInt(data.replace('toggle_service_', ''));
+    await handleToggleService(ctx, serviceId);
+    return true;
+  }
   return false;
 }
 
