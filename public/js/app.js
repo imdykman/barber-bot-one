@@ -53,16 +53,20 @@ async function loadMasters(branchId) {
     if (success) {
       const container = document.getElementById('masters-list');
       container.innerHTML = data
-        .map(
-          (master) => `
+        .map((master) => {
+          // 🆕 Умный выбор фото: берем из БД, иначе по ID, иначе сработает onerror
+          const photoSrc = master.photo_url || `/images/masters/${master.id}.jpg`;
+
+          return `
         <div class="card" onclick="selectMaster(${master.id})">
-          <img src="/images/masters/${master.id}.jpg" 
-               onerror="if(!this.dataset.error){this.dataset.error='1';this.src='/images/default-avatar.svg';}else{this.style.display='none';}">
+          <img src="${photoSrc}" 
+               onerror="this.onerror=null; this.src='/images/default-avatar.svg';"
+               alt="${master.name}">
           <h3>💇 ${master.name}</h3>
           <p>${master.specialty}</p>
         </div>
-      `
-        )
+      `;
+        })
         .join('');
 
       showStep('master');
