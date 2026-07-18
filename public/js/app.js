@@ -341,7 +341,10 @@ document.getElementById('client-phone').addEventListener('input', function (e) {
   const newValue = formatPhone(oldValue);
 
   e.target.value = newValue;
-
+  // 🆕 Скрываем ошибку политики при изменении чекбокса
+  document.getElementById('privacy-agreed').addEventListener('change', function () {
+    document.getElementById('privacy-error').style.display = 'none';
+  });
   // Восстанавливаем позицию курсора
   const diff = newValue.length - oldValue.length;
   e.target.setSelectionRange(cursorPosition + diff, cursorPosition + diff);
@@ -357,6 +360,17 @@ document.getElementById('booking-form').addEventListener('submit', async (e) => 
 
   const client_name = document.getElementById('client-name').value.trim();
   const client_phone = document.getElementById('client-phone').value;
+  const privacyAgreed = document.getElementById('privacy-agreed').checked;
+  const privacyError = document.getElementById('privacy-error');
+
+  // 🆕 Валидация согласия с политикой
+  if (!privacyAgreed) {
+    privacyError.textContent = '❌ Необходимо согласиться с политикой конфиденциальности';
+    privacyError.style.display = 'block';
+    return;
+  } else {
+    privacyError.style.display = 'none';
+  }
 
   // Валидация имени
   if (client_name.length < 2) {

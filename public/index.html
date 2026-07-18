@@ -67,6 +67,19 @@
             maxlength="18"
           />
           <div id="phone-error" class="error-message" style="display: none"></div>
+
+          <!-- 🆕 Согласие с политикой конфиденциальности -->
+          <div class="privacy-agreement">
+            <label class="checkbox-label">
+              <input type="checkbox" id="privacy-agreed" required />
+              <span>
+                Я согласен с
+                <a href="/privacy" target="_blank">политикой конфиденциальности</a>
+              </span>
+            </label>
+            <div id="privacy-error" class="error-message" style="display: none"></div>
+          </div>
+
           <button type="submit" class="submit-btn">Записаться</button>
         </form>
         <button onclick="backToTime()" class="back-btn">← Назад</button>
