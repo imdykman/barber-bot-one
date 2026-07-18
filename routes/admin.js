@@ -491,6 +491,7 @@ async function handleCallback(ctx, data, userId, { userStates }) {
     return true;
   }
   if (data.startsWith('add_master_branch_')) {
+    console.log(`🔍 [DEBUG] Перехвачен callback: ${data}`);
     if (!checkAccess(ctx, userId)) return true;
     const branchId = parseInt(data.replace('add_master_branch_', ''));
     await handleAddMasterBranch(ctx, userId, branchId, userStates);

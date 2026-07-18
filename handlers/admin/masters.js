@@ -83,26 +83,37 @@ async function startAddMaster(ctx, userId, userStates) {
 
 // Обработка выбора филиала при добавлении
 async function handleAddMasterBranch(ctx, userId, branchId, userStates) {
+  console.log(`🚀 [DEBUG] Вызвана handleAddMasterBranch`);
+  console.log(`   - userId: ${userId}`);
+  console.log(`   - branchId: ${branchId}`);
+
   const state = userStates.get(userId) || {};
+  console.log(`   - state:`, state);
 
-  const newMasterId = createMaster(
-    branchId,
-    state.temp_name || 'Без имени',
-    state.temp_specialty || 'Специалист',
-    state.temp_experience || 0,
-    '',
-    null
-  );
+  try {
+    const newMasterId = createMaster(
+      branchId,
+      state.temp_name || 'Без имени',
+      state.temp_specialty || 'Специалист',
+      state.temp_experience || 0,
+      '',
+      null
+    );
+    console.log(`✅ [DEBUG] Мастер создан с ID: ${newMasterId}`);
 
-  userStates.delete(userId);
+    userStates.delete(userId);
 
-  await ctx.reply(`✅ Мастер *${state.temp_name}* успешно добавлен!`, {
-    attachments: [
-      Keyboard.inlineKeyboard([
-        [Keyboard.button.callback('⬅️ К списку мастеров', 'admin_masters')],
-      ]),
-    ],
-  });
+    await ctx.reply(`✅ Мастер *${state.temp_name}* успешно добавлен!`, {
+      attachments: [
+        Keyboard.inlineKeyboard([
+          [Keyboard.button.callback('⬅️ К списку мастеров', 'admin_masters')],
+        ]),
+      ],
+    });
+  } catch (error) {
+    console.error(`❌ [DEBUG] Ошибка создания мастера:`, error.message);
+    await ctx.reply(`❌ Ошибка при создании мастера: ${error.message}`);
+  }
 }
 
 module.exports = {
