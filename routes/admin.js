@@ -67,7 +67,14 @@ async function handleCallback(ctx, data, userId, { userStates }) {
   }
 
   // Все админские callback начинаются с 'admin_'
-  if (!data.startsWith('admin_')) return false;
+  if (
+    !data.startsWith('admin_') &&
+    !data.startsWith('master_') &&
+    !data.startsWith('service_') &&
+    !data.startsWith('toggle_')
+  ) {
+    return false;
+  }
 
   // Меню экспорта
   if (data === 'admin_export') {
