@@ -352,12 +352,23 @@ function getFreeTimeSlots(masterId, date, serviceId = null) {
 
   if (holiday) return [];
 
-  // Получаем длительность услуги (если передана)
-  let durationMinutes = 60; // По умолчанию
+  // 🆕 Получаем длительность услуги (сначала ищем у конкретного мастера, потом в общей таблице)
+  let durationMinutes = 60; // Значение по умолчанию
   if (serviceId) {
-    const service = getService(serviceId);
-    if (service) {
-      durationMinutes = service.duration_minutes;
+    const ms = db
+      .prepare(
+        'SELECT duration_minutes FROM master_services WHERE master_id = ? AND service_id = ?'
+      )
+      .get(masterId, serviceId);
+    if (ms) {
+      durationMinutes = ms.duration_minutes;
+    } else {
+      const service = db
+        .prepare('SELECT duration_minutes FROM services WHERE id = ?')
+        .get(serviceId);
+      if (service) {
+        durationMinutes = service.duration_minutes;
+      }
     }
   }
 
@@ -374,7 +385,12 @@ function getFreeTimeSlots(masterId, date, serviceId = null) {
   const startMinutes = startH * 60 + startM;
   const endMinutes = endH * 60 + endM;
 
-  for (let minutes = startMinutes; minutes < endMinutes; minutes += 30) {
+  // 🆕 ГЛАВНОЕ ИСПРАВЛЕНИЕ:
+  // Максимальное время начала записи = время закрытия - длительность услуги
+  const maxStartMinutes = endMinutes - durationMinutes;
+
+  // 🆕 Цикл идёт ДО maxStartMinutes (включительно)
+  for (let minutes = startMinutes; minutes <= maxStartMinutes; minutes += 30) {
     // Если сегодня — пропускаем прошедшие слоты
     if (isToday && minutes <= currentMinutes) {
       continue;
