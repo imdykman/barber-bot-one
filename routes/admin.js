@@ -434,7 +434,140 @@ async function handleCallback(ctx, data, userId, { userStates }) {
     await handleMasterServiceToggle(ctx, masterId, serviceId, action);
     return true;
   }
+  // ========== НАСТРОЙКИ САЛОНА ==========
+  if (data === 'admin_salon_settings') {
+    if (!checkAccess(ctx, userId)) return true;
+    console.log(`⚙️ Админ: настройки салона`);
+    const { showSalonSettings } = require('../handlers/admin/salon-settings');
+    await showSalonSettings(ctx, userId);
+    return true;
+  }
 
+  if (data.startsWith('admin_salon_day_')) {
+    if (!checkAccess(ctx, userId)) return true;
+    const dayOfWeek = parseInt(data.replace('admin_salon_day_', ''));
+    console.log(`⚙️ Админ: редактирование дня ${dayOfWeek}`);
+    const { showDayEditor } = require('../handlers/admin/salon-settings');
+    await showDayEditor(ctx, userId, dayOfWeek);
+    return true;
+  }
+
+  if (data.startsWith('admin_salon_set_start_')) {
+    if (!checkAccess(ctx, userId)) return true;
+    const dayOfWeek = parseInt(data.replace('admin_salon_set_start_', ''));
+    console.log(`⚙️ Админ: выбор времени начала для дня ${dayOfWeek}`);
+    const { showStartTimeSelection } = require('../handlers/admin/salon-settings');
+    await showStartTimeSelection(ctx, userId, dayOfWeek);
+    return true;
+  }
+
+  if (data.startsWith('admin_salon_set_end_')) {
+    if (!checkAccess(ctx, userId)) return true;
+    const dayOfWeek = parseInt(data.replace('admin_salon_set_end_', ''));
+    console.log(`⚙️ Админ: выбор времени окончания для дня ${dayOfWeek}`);
+    const { showEndTimeSelection } = require('../handlers/admin/salon-settings');
+    await showEndTimeSelection(ctx, userId, dayOfWeek);
+    return true;
+  }
+
+  if (data.startsWith('admin_salon_toggle_off_')) {
+    if (!checkAccess(ctx, userId)) return true;
+    const dayOfWeek = parseInt(data.replace('admin_salon_toggle_off_', ''));
+    console.log(`⚙️ Админ: сделать день ${dayOfWeek} выходным`);
+    const { toggleDayOff } = require('../handlers/admin/salon-settings');
+    await toggleDayOff(ctx, userId, dayOfWeek);
+    return true;
+  }
+
+  if (data.startsWith('admin_salon_toggle_on_')) {
+    if (!checkAccess(ctx, userId)) return true;
+    const dayOfWeek = parseInt(data.replace('admin_salon_toggle_on_', ''));
+    console.log(`⚙️ Админ: сделать день ${dayOfWeek} рабочим`);
+    const { toggleDayOn } = require('../handlers/admin/salon-settings');
+    await toggleDayOn(ctx, userId, dayOfWeek);
+    return true;
+  }
+  // Обработка выбора времени начала
+  if (data.startsWith('admin_salon_time_start_')) {
+    if (!checkAccess(ctx, userId)) return true;
+    // Формат: admin_salon_time_start_3_10:00
+    const parts = data.replace('admin_salon_time_start_', '').split('_');
+    const dayOfWeek = parseInt(parts[0]);
+    const timeStr = parts[1]; // например, "10:00"
+
+    console.log(`⚙️ Админ: установка времени начала для дня ${dayOfWeek}: ${timeStr}`);
+
+    const { getSalonScheduleByDay, updateSalonSchedule } = require('../database/database');
+    const day = getSalonScheduleByDay(dayOfWeek);
+
+    if (day) {
+      updateSalonSchedule(dayOfWeek, timeStr, day.end_time, day.is_working_day);
+      const DAYS_FULL = [
+        'Воскресенье',
+        'Понедельник',
+        'Вторник',
+        'Среда',
+        'Четверг',
+        'Пятница',
+        'Суббота',
+      ];
+      await ctx.reply(`✅ *${DAYS_FULL[dayOfWeek]}*: время начала изменено на *${timeStr}*`);
+
+      const { showDayEditor } = require('../handlers/admin/salon-settings');
+      await showDayEditor(ctx, userId, dayOfWeek);
+    }
+    return true;
+  }
+
+  // Обработка выбора времени окончания
+  if (data.startsWith('admin_salon_time_end_')) {
+    if (!checkAccess(ctx, userId)) return true;
+    // Формат: admin_salon_time_end_3_20:00
+    const parts = data.replace('admin_salon_time_end_', '').split('_');
+    const dayOfWeek = parseInt(parts[0]);
+    const timeStr = parts[1]; // например, "20:00"
+
+    console.log(`⚙️ Админ: установка времени окончания для дня ${dayOfWeek}: ${timeStr}`);
+
+    const { getSalonScheduleByDay, updateSalonSchedule } = require('../database/database');
+    const day = getSalonScheduleByDay(dayOfWeek);
+
+    if (day) {
+      updateSalonSchedule(dayOfWeek, day.start_time, timeStr, day.is_working_day);
+      const DAYS_FULL = [
+        'Воскресенье',
+        'Понедельник',
+        'Вторник',
+        'Среда',
+        'Четверг',
+        'Пятница',
+        'Суббота',
+      ];
+      await ctx.reply(`✅ *${DAYS_FULL[dayOfWeek]}*: время окончания изменено на *${timeStr}*`);
+
+      const { showDayEditor } = require('../handlers/admin/salon-settings');
+      await showDayEditor(ctx, userId, dayOfWeek);
+    }
+    return true;
+  }
+  // Показать разовые выходные салона
+  if (data === 'admin_salon_holidays') {
+    if (!checkAccess(ctx, userId)) return true;
+    console.log(`📅 Админ: разовые выходные салона`);
+    const { showSalonHolidays } = require('../handlers/admin/salon-settings');
+    await showSalonHolidays(ctx, userId);
+    return true;
+  }
+
+  // Добавить/удалить разовый выходной
+  if (data.startsWith('admin_salon_toggle_holiday_')) {
+    if (!checkAccess(ctx, userId)) return true;
+    const date = data.replace('admin_salon_toggle_holiday_', '');
+    console.log(`📅 Админ: переключение выходного для даты ${date}`);
+    const { toggleSalonHoliday } = require('../handlers/admin/salon-settings');
+    await toggleSalonHoliday(ctx, userId, date);
+    return true;
+  }
   if (data.startsWith('master_') && !data.startsWith('toggle_master_')) {
     // 🆕 ВАЖНО: Если это не админ, пропускаем callback, чтобы его обработал клиентский роутер!
     if (!isAdmin(userId)) return false;

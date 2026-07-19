@@ -70,7 +70,25 @@ db.exec(`
     FOREIGN KEY (master_id) REFERENCES masters(id)
   )
 `);
-
+// График работы САЛОНА (общий для всех мастеров)
+db.exec(`
+  CREATE TABLE IF NOT EXISTS salon_schedule (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    day_of_week INTEGER NOT NULL UNIQUE,
+    start_time TEXT NOT NULL,
+    end_time TEXT NOT NULL,
+    is_working_day INTEGER DEFAULT 1
+  )
+`);
+// Разовые выходные салона (конкретные даты)
+db.exec(`
+  CREATE TABLE IF NOT EXISTS salon_holidays (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    holiday_date TEXT NOT NULL UNIQUE,
+    reason TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )
+`);
 db.exec(`
   CREATE TABLE IF NOT EXISTS bookings (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -246,19 +264,36 @@ function isTimeSlotFree(masterId, date, timeStr, durationMinutes) {
   return true;
 }
 
+// Получить свободные слоты мастера на дату (использует график салона)
 function getFreeTimeSlots(masterId, date, serviceId = null) {
-  const schedule = getMasterSchedule(masterId);
+  // Получаем день недели (0=Вс, 1=Пн, ..., 6=Сб)
   const dayOfWeek = new Date(date).getDay();
-  const daySchedule = schedule.find((s) => s.day_of_week === dayOfWeek);
 
-  if (!daySchedule) return [];
+  // Получаем график салона для этого дня
+  const daySchedule = getSalonScheduleByDay(dayOfWeek);
 
+  // Если день выходной или график не найден
+  if (!daySchedule || !daySchedule.is_working_day) {
+    return [];
+  }
+  // 🆕 Проверяем, не является ли дата разовым выходным салона
+  if (isSalonHoliday(date)) {
+    return [];
+  }
+  // Проверяем, не выходной ли это день для конкретного мастера (праздник)
   const holiday = db
-    .prepare('SELECT * FROM holidays WHERE master_id = ? AND holiday_date = ?')
+    .prepare(
+      `
+      SELECT * FROM holidays 
+      WHERE master_id = ? AND holiday_date = ?
+    `
+    )
     .get(masterId, date);
+
   if (holiday) return [];
 
-  let durationMinutes = 60;
+  // Получаем длительность услуги
+  let durationMinutes = 60; // Значение по умолчанию
   if (serviceId) {
     const ms = db
       .prepare(
@@ -271,37 +306,51 @@ function getFreeTimeSlots(masterId, date, serviceId = null) {
       const service = db
         .prepare('SELECT duration_minutes FROM services WHERE id = ?')
         .get(serviceId);
-      if (service) durationMinutes = service.duration_minutes;
+      if (service) {
+        durationMinutes = service.duration_minutes;
+      }
     }
   }
 
+  // Проверяем, является ли дата сегодняшней
   const today = new Date();
   const todayStr = today.toISOString().split('T')[0];
   const isToday = date === todayStr;
   const currentMinutes = today.getHours() * 60 + today.getMinutes();
 
+  // Генерируем слоты с шагом 30 минут
   const slots = [];
   const [startH, startM] = daySchedule.start_time.split(':').map(Number);
   const [endH, endM] = daySchedule.end_time.split(':').map(Number);
   const startMinutes = startH * 60 + startM;
   const endMinutes = endH * 60 + endM;
+
+  // Максимальное время начала записи = время закрытия - длительность услуги
   const maxStartMinutes = endMinutes - durationMinutes;
 
+  // Цикл идёт ДО maxStartMinutes (включительно)
   for (let minutes = startMinutes; minutes <= maxStartMinutes; minutes += 30) {
-    if (isToday && minutes <= currentMinutes) continue;
+    // Если сегодня — пропускаем прошедшие слоты
+    if (isToday && minutes <= currentMinutes) {
+      continue;
+    }
 
     const hours = Math.floor(minutes / 60);
     const mins = minutes % 60;
     const timeStr = `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
 
     try {
-      if (isTimeSlotFree(masterId, date, timeStr, durationMinutes)) {
+      // Проверяем, свободен ли слот
+      const isFree = isTimeSlotFree(masterId, date, timeStr, durationMinutes);
+
+      if (isFree) {
         slots.push(timeStr);
       }
     } catch (error) {
       console.error(`❌ Ошибка проверки слота ${timeStr}:`, error.message);
     }
   }
+
   return slots;
 }
 
@@ -572,7 +621,147 @@ function detachServiceFromMaster(masterId, serviceId) {
     .run(masterId, serviceId);
   return result.changes > 0;
 }
+// ========== ГРАФИК РАБОТЫ САЛОНА ==========
 
+// Получить график работы салона на все дни
+function getSalonSchedule() {
+  return db
+    .prepare(
+      `
+    SELECT * FROM salon_schedule 
+    ORDER BY 
+      CASE day_of_week 
+        WHEN 1 THEN 1 WHEN 2 THEN 2 WHEN 3 THEN 3 WHEN 4 THEN 4 
+        WHEN 5 THEN 5 WHEN 6 THEN 6 WHEN 0 THEN 7 
+      END
+  `
+    )
+    .all();
+}
+
+// Получить график для конкретного дня недели (0=Вс, 1=Пн, ..., 6=Сб)
+function getSalonScheduleByDay(dayOfWeek) {
+  return db
+    .prepare(
+      `
+    SELECT * FROM salon_schedule WHERE day_of_week = ?
+  `
+    )
+    .get(dayOfWeek);
+}
+
+// Обновить график для конкретного дня
+function updateSalonSchedule(dayOfWeek, startTime, endTime, isWorkingDay = 1) {
+  const result = db
+    .prepare(
+      `
+    UPDATE salon_schedule 
+    SET start_time = ?, end_time = ?, is_working_day = ?
+    WHERE day_of_week = ?
+  `
+    )
+    .run(startTime, endTime, isWorkingDay, dayOfWeek);
+  return result.changes > 0;
+}
+
+// Сделать день выходным
+function setDayOff(dayOfWeek) {
+  return updateSalonSchedule(
+    dayOfWeek,
+    db.prepare('SELECT start_time FROM salon_schedule WHERE day_of_week = ?').get(dayOfWeek)
+      ?.start_time || '10:00',
+    db.prepare('SELECT end_time FROM salon_schedule WHERE day_of_week = ?').get(dayOfWeek)
+      ?.end_time || '20:00',
+    0
+  );
+}
+
+// Сделать день рабочим
+function setDayWorking(dayOfWeek) {
+  return updateSalonSchedule(
+    dayOfWeek,
+    db.prepare('SELECT start_time FROM salon_schedule WHERE day_of_week = ?').get(dayOfWeek)
+      ?.start_time || '10:00',
+    db.prepare('SELECT end_time FROM salon_schedule WHERE day_of_week = ?').get(dayOfWeek)
+      ?.end_time || '20:00',
+    1
+  );
+}
+
+// Получить диапазон рабочих часов салона (минимальное начало и максимальный конец)
+function getWorkingHoursRange() {
+  const row = db
+    .prepare(
+      `
+    SELECT 
+      MIN(start_time) as min_start,
+      MAX(end_time) as max_end
+    FROM salon_schedule 
+    WHERE is_working_day = 1
+  `
+    )
+    .get();
+
+  return {
+    minStart: row?.min_start || '10:00',
+    maxEnd: row?.max_end || '20:00',
+  };
+}
+// ========== РАЗОВЫЕ ВЫХОДНЫЕ САЛОНА ==========
+
+// Получить все разовые выходные салона
+function getSalonHolidays() {
+  return db
+    .prepare(
+      `
+    SELECT * FROM salon_holidays 
+    ORDER BY holiday_date ASC
+  `
+    )
+    .all();
+}
+
+// Проверить, является ли дата разовым выходным
+function isSalonHoliday(date) {
+  const holiday = db
+    .prepare(
+      `
+    SELECT * FROM salon_holidays WHERE holiday_date = ?
+  `
+    )
+    .get(date);
+  return !!holiday;
+}
+
+// Добавить разовый выходной
+function addSalonHoliday(date, reason = '') {
+  try {
+    const result = db
+      .prepare(
+        `
+      INSERT INTO salon_holidays (holiday_date, reason)
+      VALUES (?, ?)
+    `
+      )
+      .run(date, reason);
+    return result.changes > 0;
+  } catch (error) {
+    // Если дата уже есть (UNIQUE constraint), возвращаем false
+    return false;
+  }
+}
+
+// Удалить разовый выходной
+function removeSalonHoliday(date) {
+  const result = db
+    .prepare(
+      `
+    DELETE FROM salon_holidays WHERE holiday_date = ?
+  `
+    )
+    .run(date);
+  return result.changes > 0;
+}
 // ========== ЭКСПОРТ ==========
 module.exports = {
   db,
@@ -609,4 +798,16 @@ module.exports = {
   getMasterServicesWithStatus,
   attachServiceToMaster,
   detachServiceFromMaster,
+  // График работы салона
+  getSalonSchedule,
+  getSalonScheduleByDay,
+  updateSalonSchedule,
+  setDayOff,
+  setDayWorking,
+  getWorkingHoursRange,
+  // Разовые выходные салона
+  getSalonHolidays,
+  isSalonHoliday,
+  addSalonHoliday,
+  removeSalonHoliday,
 };
