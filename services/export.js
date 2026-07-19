@@ -1,24 +1,21 @@
 const { db } = require('../database/database');
 
-// Генерация CSV с записями за период
+// Генерация CSV с записями за период (Версия One: без филиалов и таблицы clients)
 function generateBookingsCSV(filter = {}) {
   let query = `
     SELECT 
       b.booking_date AS "Дата",
       b.booking_time AS "Время",
-      c.name AS "Клиент",
-      c.phone AS "Телефон",
+      b.client_name AS "Клиент",
+      b.client_phone AS "Телефон",
       m.name AS "Мастер",
       s.name AS "Услуга",
-      ms.price AS "Цена",
-      br.name AS "Филиал",
+      COALESCE(ms.price, s.price_min) AS "Цена",
       b.status AS "Статус"
     FROM bookings b
-    JOIN clients c ON b.client_id = c.id
     JOIN masters m ON b.master_id = m.id
     JOIN services s ON b.service_id = s.id
-    JOIN master_services ms ON ms.master_id = m.id AND ms.service_id = s.id
-    JOIN branches br ON b.branch_id = br.id
+    LEFT JOIN master_services ms ON ms.master_id = b.master_id AND ms.service_id = b.service_id
     WHERE 1=1
   `;
 
@@ -54,17 +51,7 @@ function generateBookingsCSV(filter = {}) {
 
   // Формируем CSV с BOM для корректного открытия в Excel
   const BOM = '\uFEFF';
-  const headers = [
-    'Дата',
-    'Время',
-    'Клиент',
-    'Телефон',
-    'Мастер',
-    'Услуга',
-    'Цена',
-    'Филиал',
-    'Статус',
-  ];
+  const headers = ['Дата', 'Время', 'Клиент', 'Телефон', 'Мастер', 'Услуга', 'Цена', 'Статус'];
 
   const csvRows = [headers.join(';')];
 
@@ -76,8 +63,7 @@ function generateBookingsCSV(filter = {}) {
       row['Телефон'],
       row['Мастер'],
       escapeCsv(row['Услуга']),
-      row['Цена'],
-      row['Филиал'],
+      row['Цена'] || '0',
       statusMap[row['Статус']] || row['Статус'],
     ];
     csvRows.push(values.join(';'));
