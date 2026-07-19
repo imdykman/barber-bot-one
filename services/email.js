@@ -12,7 +12,6 @@ const transporter = nodemailer.createTransport({
 });
 
 // Отправка email админу при новой записи
-// Добавили второй параметр clientUserId (по умолчанию null)
 async function notifyNewBooking(booking, clientUserId = null) {
   const adminEmail = process.env.ADMIN_EMAIL;
   if (!adminEmail) {
@@ -29,11 +28,8 @@ async function notifyNewBooking(booking, clientUserId = null) {
 
   const subject = `✂️ Новая запись: ${booking.client_name} — ${displayDate} в ${booking.booking_time}`;
 
-  // 🆕 Проверяем, есть ли у клиента MAX ID (user_id)
-  // Если берем из booking.user_id или из переданного clientUserId
   const hasMaxId = clientUserId || booking.user_id;
 
-  // Формируем блок предупреждения, если MAX ID нет
   const warningBlock = !hasMaxId
     ? `<tr>
          <td colspan="2" style="padding: 12px; border: 2px solid #ff9800; background-color: #fff3e0; color: #e65100; font-weight: bold; text-align: center; border-radius: 4px;">
@@ -44,7 +40,7 @@ async function notifyNewBooking(booking, clientUserId = null) {
     : '';
 
   const html = `
-    <h2>✂️ Новая запись в салоне "Ножницы&Ко"</h2>
+    <h2>✂️ Новая запись в салоне "Ножницы & One"</h2>
     <table style="border-collapse: collapse; width: 100%; max-width: 600px;">
       ${warningBlock}
       <tr>
@@ -73,11 +69,7 @@ async function notifyNewBooking(booking, clientUserId = null) {
       </tr>
       <tr>
         <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Стоимость:</td>
-        <td style="padding: 8px; border: 1px solid #ddd;">${booking.service_price} ₽</td>
-      </tr>
-      <tr>
-        <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Филиал:</td>
-        <td style="padding: 8px; border: 1px solid #ddd;">${booking.branch_name}</td>
+        <td style="padding: 8px; border: 1px solid #ddd;">${booking.price || 'Не указана'} ₽</td>
       </tr>
     </table>
     <p style="margin-top: 20px; color: #666;">
@@ -123,7 +115,7 @@ async function notifyBookingStatusChange(booking, oldStatus, newStatus) {
   const subject = `🔄 Изменение записи #${booking.id}: ${statusText[newStatus] || newStatus}`;
 
   const html = `
-    <h2>🔄 Изменение записи в салоне "Ножницы&Ко"</h2>
+    <h2>🔄 Изменение записи в салоне "Ножницы & One"</h2>
     <p><strong>Запись #${booking.id}</strong></p>
     <table style="border-collapse: collapse; width: 100%; max-width: 600px;">
       <tr>
@@ -167,6 +159,74 @@ async function notifyBookingStatusChange(booking, oldStatus, newStatus) {
     console.error('❌ Ошибка отправки email:', error.message);
   }
 }
+
+// 🆕 Отправка email админу при отмене записи клиентом через бота
+async function notifyCancelBooking(booking) {
+  const adminEmail = process.env.ADMIN_EMAIL;
+  if (!adminEmail) {
+    console.log('⚠️ ADMIN_EMAIL не указан, email не отправлен');
+    return;
+  }
+
+  const date = new Date(booking.booking_date);
+  const displayDate = date.toLocaleDateString('ru-RU', {
+    day: 'numeric',
+    month: 'long',
+    weekday: 'long',
+  });
+
+  const subject = `❌ Отмена записи: ${booking.client_name} — ${displayDate} в ${booking.booking_time}`;
+
+  const html = `
+    <h2>❌ Запись была отменена клиентом</h2>
+    <table style="border-collapse: collapse; width: 100%; max-width: 600px;">
+      <tr>
+        <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Клиент:</td>
+        <td style="padding: 8px; border: 1px solid #ddd;">${booking.client_name}</td>
+      </tr>
+      <tr>
+        <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Телефон:</td>
+        <td style="padding: 8px; border: 1px solid #ddd;">${booking.client_phone}</td>
+      </tr>
+      <tr>
+        <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Дата:</td>
+        <td style="padding: 8px; border: 1px solid #ddd;">${displayDate}</td>
+      </tr>
+      <tr>
+        <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Время:</td>
+        <td style="padding: 8px; border: 1px solid #ddd;">${booking.booking_time}</td>
+      </tr>
+      <tr>
+        <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Мастер:</td>
+        <td style="padding: 8px; border: 1px solid #ddd;">${booking.master_name}</td>
+      </tr>
+      <tr>
+        <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Услуга:</td>
+        <td style="padding: 8px; border: 1px solid #ddd;">${booking.service_name}</td>
+      </tr>
+      <tr>
+        <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">Стоимость:</td>
+        <td style="padding: 8px; border: 1px solid #ddd;">${booking.price || 'Не указана'} ₽</td>
+      </tr>
+    </table>
+    <p style="margin-top: 20px; color: #666;">
+      Запись #${booking.id} была отменена клиентом через Telegram-бота.
+    </p>
+  `;
+
+  try {
+    await transporter.sendMail({
+      from: process.env.SMTP_FROM || process.env.SMTP_USER,
+      to: adminEmail,
+      subject,
+      html,
+    });
+    console.log(`📧 Email отправлен админу: запись #${booking.id} отменена клиентом`);
+  } catch (error) {
+    console.error('❌ Ошибка отправки email об отмене:', error.message);
+  }
+}
+
 // Отправка email с вложением (CSV)
 async function sendEmailWithAttachment(to, subject, text, attachment) {
   try {
@@ -183,8 +243,10 @@ async function sendEmailWithAttachment(to, subject, text, attachment) {
     throw error;
   }
 }
+
 module.exports = {
   notifyNewBooking,
   notifyBookingStatusChange,
+  notifyCancelBooking,
   sendEmailWithAttachment,
 };

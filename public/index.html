@@ -1,97 +1,89 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ru">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>✂️ Ножницы & One — Онлайн-запись</title>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ножницы & One — Онлайн запись</title>
+  <style>
+    :root { --primary: #2c3e50; --accent: #27ae60; --bg: #f8f9fa; --text: #333; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 20px; }
+    .container { max-width: 600px; margin: 0 auto; background: white; border-radius: 12px; padding: 24px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+    h1 { text-align: center; color: var(--primary); margin-bottom: 24px; font-size: 24px; }
+    .step { display: none; }
+    .step.active { display: block; animation: fadeIn 0.3s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    
+    .card { border: 1px solid #e0e0e0; border-radius: 8px; padding: 16px; margin-bottom: 12px; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 16px; }
+    .card:hover { border-color: var(--accent); background: #f0fdf4; }
+    .card img { width: 50px; height: 50px; border-radius: 50%; object-fit: cover; background: #eee; }
+    .card-info h3 { margin: 0 0 4px 0; font-size: 16px; }
+    .card-info p { margin: 0; color: #666; font-size: 14px; }
+    
+    .btn { width: 100%; padding: 14px; background: var(--accent); color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; margin-top: 16px; }
+    .btn:disabled { background: #ccc; cursor: not-allowed; }
+    .btn-secondary { background: #e0e0e0; color: #333; margin-top: 8px; }
+    
+    .form-group { margin-bottom: 16px; }
+    .form-group label { display: block; margin-bottom: 6px; font-weight: 500; font-size: 14px; }
+    .form-group input { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px; box-sizing: border-box; }
+    .form-group input:focus { outline: none; border-color: var(--accent); }
+    
+    .summary { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 16px; margin-bottom: 16px; }
+    .summary p { margin: 8px 0; font-size: 15px; }
+    .loader { text-align: center; padding: 40px; color: #666; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>✂️ Ножницы & One</h1>
 
-    <!-- 🆕 Фавикон для вкладки браузера -->
-    <link rel="icon" type="image/svg+xml" href="/images/logo.svg" />
+    <!-- Шаг 1: Выбор мастера -->
+    <div id="step-master" class="step active">
+      <h2>Выберите мастера</h2>
+      <div id="masters-list" class="loader">Загрузка...</div>
+    </div>
 
-    <link rel="stylesheet" href="/css/style.css" />
-  </head>
-  <body>
-    <header>
-      <a href="/" class="logo-link" style="text-decoration: none; color: inherit">
-        <img src="/images/logo.svg" alt="Ножницы & One" class="logo" />
-      </a>
-      <h1>Ножницы & One</h1>
-      <p id="header-subtitle" class="subtitle">Салон красоты в вашем городе</p>
-    </header>
+    <!-- Шаг 2: Выбор услуги -->
+    <div id="step-service" class="step">
+      <h2>Выберите услугу</h2>
+      <div id="services-list" class="loader">Загрузка...</div>
+      <button class="btn btn-secondary" onclick="showStep('step-master')">⬅️ Назад к мастерам</button>
+    </div>
 
-    <main>
-      <!-- Шаг 2: Выбор мастера -->
-      <div id="step-master" class="step" style="display: none">
-        <h2>Выберите мастера</h2>
-        <div id="masters-list" class="cards"></div>
-        <button onclick="backToBranch()" class="back-btn">← Назад</button>
+    <!-- Шаг 3: Дата и время -->
+    <div id="step-datetime" class="step">
+      <h2>Выберите дату и время</h2>
+      <div class="form-group">
+        <label>Дата</label>
+        <input type="date" id="booking-date" />
       </div>
+      <div id="time-slots" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 16px;"></div>
+      <button class="btn btn-secondary" onclick="showStep('step-service')">⬅️ Назад к услугам</button>
+    </div>
 
-      <!-- Шаг 3: Выбор услуги -->
-      <div id="step-service" class="step" style="display: none">
-        <h2>Выберите услугу</h2>
-        <div id="services-list" class="list"></div>
-        <button onclick="backToMaster()" class="back-btn">← Назад</button>
+    <!-- Шаг 4: Данные клиента -->
+    <div id="step-client" class="step">
+      <h2>Ваши данные</h2>
+      <div class="summary" id="booking-summary"></div>
+      <div class="form-group">
+        <label>Ваше имя</label>
+        <input type="text" id="client-name" placeholder="Иван Иванов" />
       </div>
-
-      <!-- Шаг 4: Выбор даты -->
-      <div id="step-date" class="step" style="display: none">
-        <h2>Выберите дату</h2>
-        <div id="dates-list" class="dates"></div>
-        <button onclick="backToService()" class="back-btn">← Назад</button>
+      <div class="form-group">
+        <label>Телефон</label>
+        <input type="tel" id="client-phone" placeholder="+7 (999) 123-45-67" />
       </div>
+      <button class="btn" id="submit-btn" onclick="submitBooking()">✅ Подтвердить запись</button>
+      <button class="btn btn-secondary" onclick="showStep('step-datetime')">⬅️ Назад</button>
+    </div>
 
-      <!-- Шаг 5: Выбор времени -->
-      <div id="step-time" class="step" style="display: none">
-        <h2>Выберите время</h2>
-        <div id="times-list" class="times"></div>
-        <button onclick="backToDate()" class="back-btn">← Назад</button>
-      </div>
+    <!-- Шаг 5: Успех -->
+    <div id="step-success" class="step" style="text-align: center;">
+      <h2 style="color: var(--accent);">✅ Запись подтверждена!</h2>
+      <p>Мы ждём вас. Детали отправлены вам на телефон.</p>
+      <button class="btn" onclick="location.reload()">🏠 На главную</button</div>
+  </div>
 
-      <!-- Шаг 6: Форма клиента -->
-      <div id="step-form" class="step" style="display: none">
-        <h2>Ваши данные</h2>
-        <form id="booking-form">
-          <input type="text" id="client-name" placeholder="Ваше имя" required />
-          <input
-            type="tel"
-            id="client-phone"
-            placeholder="+7 (___) ___-__-__"
-            required
-            maxlength="18"
-          />
-          <div id="phone-error" class="error-message" style="display: none"></div>
-
-          <!-- 🆕 Согласие с политикой конфиденциальности -->
-          <div class="privacy-agreement">
-            <label class="checkbox-label">
-              <input type="checkbox" id="privacy-agreed" required />
-              <span>
-                Я согласен с
-                <a href="/privacy" target="_blank">политикой конфиденциальности</a>
-              </span>
-            </label>
-            <div id="privacy-error" class="error-message" style="display: none"></div>
-          </div>
-
-          <button type="submit" class="submit-btn">Записаться</button>
-        </form>
-        <button onclick="backToTime()" class="back-btn">← Назад</button>
-      </div>
-
-      <!-- Шаг 7: Подтверждение -->
-      <div id="step-success" class="step" style="display: none">
-        <h2>✅ Запись подтверждена!</h2>
-        <div id="booking-details"></div>
-        <a href="/" class="home-btn">🏠 На главную</a>
-      </div>
-    </main>
-
-    <footer>
-      <p>Центральный: +7 (343) 100-10-10</p>
-      <p><a href="/privacy">Политика конфиденциальности</a></p>
-    </footer>
-
-    <script src="/js/app.js"></script>
-  </body>
+  <script src="/js/app.js"></script>
+</body>
 </html>

@@ -147,7 +147,7 @@ function createBooking(masterId, serviceId, clientName, clientPhone, date, time,
     .prepare(
       `
     INSERT INTO bookings (master_id, service_id, client_name, client_phone, user_id, booking_date, booking_time, status)
-    VALUES (?, ?, ?, ?, ?, ?, ?, 'pending')
+    VALUES (?, ?, ?, ?, ?, ?, ?, 'confirmed')
   `
     )
     .run(masterId, serviceId, clientName, clientPhone, userId, date, time);
@@ -395,7 +395,7 @@ function getBookingWithClient(bookingId) {
   return db
     .prepare(
       `
-    SELECT b.*, m.name as master_name, s.name as service_name, s.price_min as base_price
+    SELECT b.*, m.name as master_name, s.name as service_name, s.price_min as price
     FROM bookings b
     JOIN masters m ON b.master_id = m.id
     JOIN services s ON b.service_id = s.id

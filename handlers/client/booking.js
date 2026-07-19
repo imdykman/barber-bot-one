@@ -14,7 +14,6 @@ async function showBookingConfirmation(ctx, userId, userStates, time) {
 
   const master = getMaster(state.master_id);
 
-  // Получаем услугу с ценой для конкретного мастера
   const serviceWithPrice = db
     .prepare(
       `
@@ -41,12 +40,11 @@ async function showBookingConfirmation(ctx, userId, userStates, time) {
     weekday: 'long',
   });
 
-  // Сохраняем время в состоянии
   state.booking_time = time;
   userStates.set(userId, state);
 
   const keyboard = Keyboard.inlineKeyboard([
-    [Keyboard.button.callback('✅ Подтвердить запись', 'confirm_booking_action')],
+    [Keyboard.button.callback('✅ Согласен с политикой конфиденциальности', 'privacy_agree')],
     [Keyboard.button.callback('⬅️ Выбрать другое время', 'back_to_calendar')],
   ]);
 
@@ -61,12 +59,29 @@ async function showBookingConfirmation(ctx, userId, userStates, time) {
       `📅 *Дата:* ${displayDate}\n` +
       `🕐 *Время:* ${time}\n\n` +
       `━━━━━━━━━━━━━━━━━━━━━━\n\n` +
-      `Для завершения записи нажмите кнопку подтверждения:`,
+      `🔒 *Политика конфиденциальности:*\n` +
+      `https://one.max-dialog.ru/privacy\n\n` +
+      `Для завершения записи необходимо согласие на обработку персональных данных:`,
     { attachments: [keyboard] }
   );
 }
 
-// Финальное подтверждение и создание записи
+// Запрос контакта у пользователя
+async function requestContact(ctx, userId, userStates) {
+  const keyboard = Keyboard.inlineKeyboard([
+    [Keyboard.button.requestContact('📱 Отправить контакт')],
+    [Keyboard.button.callback('⬅️ Назад', 'back_to_confirmation')],
+  ]);
+
+  await ctx.reply(
+    `📱 *Отправьте ваш контакт*\n\n` +
+      `Нажмите кнопку ниже, чтобы отправить ваш контакт из MAX.\n` +
+      `Это нужно для подтверждения записи и связи с вами.`,
+    { attachments: [keyboard] }
+  );
+}
+
+// Финальное подтверждение и создание записи (вызывается после получения контакта)
 async function confirmBooking(ctx, userId, userStates) {
   const state = userStates.get(userId);
 
@@ -83,11 +98,16 @@ async function confirmBooking(ctx, userId, userStates) {
     return;
   }
 
+  if (!state.client_name || !state.client_phone) {
+    await ctx.reply('❌ Ошибка: не получен контакт. Попробуйте ещё раз.', {
+      attachments: [Keyboard.inlineKeyboard([[Keyboard.button.callback('⬅️ В начало', 'start')]])],
+    });
+    return;
+  }
+
   try {
     console.log('🔍 STATE перед записью:', JSON.stringify(state, null, 2));
 
-    // 🆕 Создаём запись по новой сигнатуре (без branch_id и clientId)
-    // createBooking(masterId, serviceId, clientName, clientPhone, date, time, userId)
     const bookingId = createBooking(
       state.master_id,
       state.service_id,
@@ -119,7 +139,6 @@ async function confirmBooking(ctx, userId, userStates) {
 
     const service = serviceWithPrice;
 
-    // Очищаем состояние
     userStates.delete(userId);
 
     const keyboard = Keyboard.inlineKeyboard([
@@ -146,7 +165,6 @@ async function confirmBooking(ctx, userId, userStates) {
       `✅ Запись создана: ID ${bookingId}, клиент ${state.client_name}, мастер ${master.name}`
     );
 
-    // Отправляем email админу
     try {
       const { notifyNewBooking } = require('../../services/email');
       const bookingWithDetails = getBookingWithClient(bookingId);
@@ -172,4 +190,5 @@ async function confirmBooking(ctx, userId, userStates) {
 module.exports = {
   showBookingConfirmation,
   confirmBooking,
+  requestContact,
 };

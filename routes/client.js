@@ -100,7 +100,7 @@ async function handleCallback(ctx, data, userId, { userStates }) {
   if (data.startsWith('cancel_')) {
     const bookingId = parseInt(data.replace('cancel_', ''));
     console.log(`❌ Запрос отмены записи: ${bookingId}`);
-    await showCancelConfirmation(ctx, userId, userStates, bookingId);
+    await showCancelConfirmation(ctx, userId, bookingId); // <-- Только 3 аргумента!
     return true;
   }
 
@@ -108,7 +108,7 @@ async function handleCallback(ctx, data, userId, { userStates }) {
   if (data.startsWith('confirm_cancel_')) {
     const bookingId = parseInt(data.replace('confirm_cancel_', ''));
     console.log(`✅ Подтверждение отмены записи: ${bookingId}`);
-    await confirmCancelBooking(ctx, userId, userStates, bookingId);
+    await confirmCancelBooking(ctx, userId, bookingId); // <-- Только 3 аргумента!
     return true;
   }
 
