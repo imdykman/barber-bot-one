@@ -34,7 +34,7 @@ async function showTimeSlots(ctx, userId, userStates, dateStr) {
         attachments: [
           Keyboard.inlineKeyboard([
             [Keyboard.button.callback('📅 Выбрать другую дату', `master_${state.master_id}`)],
-            [Keyboard.button.callback('⬅️ К филиалам', 'start')],
+            [Keyboard.button.callback('⬅️ В главное меню', 'start')],
           ]),
         ],
       }

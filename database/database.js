@@ -89,6 +89,19 @@ db.exec(`
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )
 `);
+// Индивидуальные перерывы мастеров
+db.exec(`
+  CREATE TABLE IF NOT EXISTS master_breaks (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    master_id INTEGER NOT NULL,
+    break_date TEXT NOT NULL,
+    start_time TEXT NOT NULL,
+    end_time TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (master_id) REFERENCES masters(id),
+    UNIQUE(master_id, break_date, start_time)
+  )
+`);
 db.exec(`
   CREATE TABLE IF NOT EXISTS bookings (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -340,11 +353,28 @@ function getFreeTimeSlots(masterId, date, serviceId = null) {
     const timeStr = `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
 
     try {
-      // Проверяем, свободен ли слот
+      // Проверяем, свободен ли слот (с учетом других записей)
       const isFree = isTimeSlotFree(masterId, date, timeStr, durationMinutes);
 
       if (isFree) {
-        slots.push(timeStr);
+        // 🆕 Проверяем, не попадает ли слот в перерыв мастера
+        const breaks = getMasterBreaksByDate(masterId, date);
+        const slotStart = minutes;
+        const slotEnd = minutes + durationMinutes;
+
+        const inBreak = breaks.some((breakItem) => {
+          const [bH, bM] = breakItem.start_time.split(':').map(Number);
+          const [eH, eM] = breakItem.end_time.split(':').map(Number);
+          const breakStart = bH * 60 + bM;
+          const breakEnd = eH * 60 + eM;
+
+          // Слот пересекается с перерывом, если он начинается до конца перерыва и заканчивается после начала перерыва
+          return slotStart < breakEnd && slotEnd > breakStart;
+        });
+
+        if (!inBreak) {
+          slots.push(timeStr);
+        }
       }
     } catch (error) {
       console.error(`❌ Ошибка проверки слота ${timeStr}:`, error.message);
@@ -762,6 +792,75 @@ function removeSalonHoliday(date) {
     .run(date);
   return result.changes > 0;
 }
+
+// ========== ИНДИВИДУАЛЬНЫЕ ПЕРЕРЫВЫ МАСТЕРОВ ==========
+
+// Получить все перерывы мастера
+function getMasterBreaks(masterId) {
+  return db
+    .prepare(
+      `
+    SELECT * FROM master_breaks 
+    WHERE master_id = ? 
+    ORDER BY break_date ASC, start_time ASC
+  `
+    )
+    .all(masterId);
+}
+
+// Получить перерывы мастера на конкретную дату
+function getMasterBreaksByDate(masterId, date) {
+  return db
+    .prepare(
+      `
+    SELECT * FROM master_breaks 
+    WHERE master_id = ? AND break_date = ?
+    ORDER BY start_time ASC
+  `
+    )
+    .all(masterId, date);
+}
+
+// Добавить перерыв
+function addMasterBreak(masterId, date, startTime, endTime) {
+  try {
+    const result = db
+      .prepare(
+        `
+      INSERT INTO master_breaks (master_id, break_date, start_time, end_time)
+      VALUES (?, ?, ?, ?)
+    `
+      )
+      .run(masterId, date, startTime, endTime);
+    return result.lastInsertRowid;
+  } catch (error) {
+    console.error('❌ Ошибка добавления перерыва:', error.message);
+    return null;
+  }
+}
+
+// Удалить перерыв по ID
+function removeMasterBreak(breakId) {
+  const result = db
+    .prepare(
+      `
+    DELETE FROM master_breaks WHERE id = ?
+  `
+    )
+    .run(breakId);
+  return result.changes > 0;
+}
+
+// Получить перерыв по ID (нужно для проверки принадлежности мастеру)
+function getMasterBreakById(breakId) {
+  return db
+    .prepare(
+      `
+    SELECT * FROM master_breaks WHERE id = ?
+  `
+    )
+    .get(breakId);
+}
 // ========== ЭКСПОРТ ==========
 module.exports = {
   db,
@@ -810,4 +909,10 @@ module.exports = {
   isSalonHoliday,
   addSalonHoliday,
   removeSalonHoliday,
+  // Индивидуальные перерывы мастеров
+  getMasterBreaks,
+  getMasterBreaksByDate,
+  addMasterBreak,
+  removeMasterBreak,
+  getMasterBreakById,
 };

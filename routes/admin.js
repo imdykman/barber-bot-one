@@ -410,6 +410,69 @@ async function handleCallback(ctx, data, userId, { userStates }) {
     await applyReschedule(ctx, userId, time);
     return true;
   }
+  // ========== ИНДИВИДУАЛЬНЫЕ ПЕРЕРЫВЫ МАСТЕРОВ ==========
+
+  // Сохранение перерыва (должен быть ПЕРЕД master_break_start_)
+  if (data.startsWith('master_break_save_')) {
+    if (!checkAccess(ctx, userId)) return true;
+    // Формат: master_break_save_1_2026-07-21_13:00_14:00
+    const parts = data.replace('master_break_save_', '').split('_');
+    const masterId = parseInt(parts[0]);
+    const date = parts[1];
+    const startTime = parts[2];
+    const endTime = parts[3];
+    console.log(`⏸️ Админ: сохранение перерыва для ${masterId} на ${date} ${startTime}-${endTime}`);
+    const { saveMasterBreak } = require('../handlers/admin/masters');
+    await saveMasterBreak(ctx, userId, masterId, date, startTime, endTime);
+    return true;
+  }
+
+  // Выбор времени начала
+  if (data.startsWith('master_break_start_')) {
+    if (!checkAccess(ctx, userId)) return true;
+    // Формат: master_break_start_1_2026-07-21_13:00
+    const parts = data.replace('master_break_start_', '').split('_');
+    const masterId = parseInt(parts[0]);
+    const date = parts[1];
+    const time = parts[2];
+    console.log(`⏸️ Админ: выбор времени окончания для ${masterId} на ${date} с ${time}`);
+    const { showBreakEndTime } = require('../handlers/admin/masters');
+    await showBreakEndTime(ctx, masterId, date, time);
+    return true;
+  }
+
+  // Выбор дня
+  if (data.startsWith('master_break_day_')) {
+    if (!checkAccess(ctx, userId)) return true;
+    // Формат: master_break_day_1_2026-07-21
+    const parts = data.replace('master_break_day_', '').split('_');
+    const masterId = parseInt(parts[0]);
+    const date = parts[1];
+    console.log(`⏸️ Админ: выбор времени начала для ${masterId} на ${date}`);
+    const { showBreakStartTime } = require('../handlers/admin/masters');
+    await showBreakStartTime(ctx, masterId, date);
+    return true;
+  }
+
+  // Удаление перерыва
+  if (data.startsWith('master_break_del_')) {
+    if (!checkAccess(ctx, userId)) return true;
+    const breakId = parseInt(data.replace('master_break_del_', ''));
+    console.log(`⏸️ Админ: удаление перерыва ${breakId}`);
+    const { deleteMasterBreak } = require('../handlers/admin/masters');
+    await deleteMasterBreak(ctx, userId, breakId);
+    return true;
+  }
+
+  // Список перерывов мастера
+  if (data.startsWith('master_breaks_')) {
+    if (!checkAccess(ctx, userId)) return true;
+    const masterId = parseInt(data.replace('master_breaks_', ''));
+    console.log(`⏸️ Админ: перерывы мастера ${masterId}`);
+    const { showMasterBreaks } = require('../handlers/admin/masters');
+    await showMasterBreaks(ctx, masterId);
+    return true;
+  }
   // ========== УПРАВЛЕНИЕ МАСТЕРАМИ ==========
   if (data === 'admin_masters') {
     await showMastersList(ctx);
@@ -568,7 +631,12 @@ async function handleCallback(ctx, data, userId, { userStates }) {
     await toggleSalonHoliday(ctx, userId, date);
     return true;
   }
-  if (data.startsWith('master_') && !data.startsWith('toggle_master_')) {
+  if (
+    data.startsWith('master_') &&
+    !data.startsWith('toggle_master_') &&
+    !data.startsWith('master_breaks_') &&
+    !data.startsWith('master_break_')
+  ) {
     // 🆕 ВАЖНО: Если это не админ, пропускаем callback, чтобы его обработал клиентский роутер!
     if (!isAdmin(userId)) return false;
 

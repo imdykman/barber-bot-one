@@ -7,6 +7,13 @@ const {
   getMasterServicesWithStatus,
   attachServiceToMaster,
   detachServiceFromMaster,
+  getMasterBreaks, // 🆕
+  addMasterBreak, // 🆕
+  removeMasterBreak, // 🆕
+  getMasterBreakById, // 🆕
+  getSalonScheduleByDay, // 🆕
+  isSalonHoliday, // 🆕
+  getWorkingHoursRange, // 🆕
 } = require('../../database/database');
 
 // Показать список мастеров
@@ -49,6 +56,7 @@ async function showMasterDetails(ctx, masterId) {
 
   const keyboard = Keyboard.inlineKeyboard([
     [Keyboard.button.callback('🔗 Услуги мастера', `master_services_${masterId}`)],
+    [Keyboard.button.callback('⏸️ Индивидуальные перерывы', `master_breaks_${masterId}`)],
     [
       Keyboard.button.callback(
         master.is_active ? '🚫 Деактивировать' : '✅ Активировать',
@@ -152,7 +160,215 @@ async function handleMasterServiceToggle(ctx, masterId, serviceId, action) {
 
   await showMasterServices(ctx, masterId);
 }
+// ========== ИНДИВИДУАЛЬНЫЕ ПЕРЕРЫВЫ ==========
 
+const DAYS_RU_BREAKS = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
+
+// Показать экран управления перерывами мастера
+async function showMasterBreaks(ctx, masterId) {
+  const master = getMasterById(masterId);
+  if (!master) {
+    await ctx.reply('❌ Мастер не найден');
+    return;
+  }
+
+  const breaks = getMasterBreaks(masterId);
+
+  let message = `⏸️ *Индивидуальные перерывы*\n💇 ${master.name}\n\n━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+  message += `Нажмите на день, чтобы добавить перерыв.\n`;
+  message += `Дни, когда салон не работает, не отображаются.\n\n`;
+
+  // Показываем установленные перерывы
+  if (breaks.length > 0) {
+    message += `📋 *Установленные перерывы:*\n`;
+    breaks.forEach((b) => {
+      const date = new Date(b.break_date);
+      const displayDate = date.toLocaleDateString('ru-RU', {
+        day: 'numeric',
+        month: 'short',
+        weekday: 'short',
+      });
+      message += `  • ${displayDate}: ${b.start_time} — ${b.end_time}\n`;
+    });
+    message += `\n━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+  }
+
+  message += `Выберите день:`;
+
+  // Генерируем 10 рабочих дней (исключая выходные салона и разовые выходные)
+  const buttons = [];
+  const today = new Date();
+  let addedDays = 0;
+  let dayOffset = 0;
+
+  while (addedDays < 10 && dayOffset < 30) {
+    const date = new Date(today);
+    date.setDate(today.getDate() + dayOffset);
+    const dateStr = date.toISOString().split('T')[0];
+    const dayOfWeek = date.getDay();
+
+    // Проверяем, рабочий ли это день по графику салона
+    const daySchedule = getSalonScheduleByDay(dayOfWeek);
+    const isWorkingDay = daySchedule && daySchedule.is_working_day;
+
+    // Проверяем, не разовый ли это выходной
+    const isHoliday = isSalonHoliday(dateStr);
+
+    if (isWorkingDay && !isHoliday) {
+      const displayDate = date.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' });
+      const dayName = DAYS_RU_BREAKS[dayOfWeek];
+
+      // Проверяем, есть ли перерывы в этот день
+      const dayBreaks = breaks.filter((b) => b.break_date === dateStr);
+      const hasBreaks = dayBreaks.length > 0;
+      const buttonText = hasBreaks ? `${displayDate} ${dayName} ⏸️` : `${displayDate} ${dayName}`;
+
+      if (buttons.length === 0 || buttons[buttons.length - 1].length >= 2) {
+        buttons.push([]);
+      }
+      buttons[buttons.length - 1].push(
+        Keyboard.button.callback(buttonText, `master_break_day_${masterId}_${dateStr}`)
+      );
+      addedDays++;
+    }
+    dayOffset++;
+  }
+
+  // Кнопки удаления перерывов
+  if (breaks.length > 0) {
+    message += `\n\n🗑️ *Удалить перерыв:*`;
+    breaks.forEach((b) => {
+      const date = new Date(b.break_date);
+      const displayDate = date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
+      buttons.push([
+        Keyboard.button.callback(
+          `❌ ${displayDate} ${b.start_time}-${b.end_time}`,
+          `master_break_del_${b.id}`
+        ),
+      ]);
+    });
+  }
+
+  buttons.push([Keyboard.button.callback('⬅️ Назад к мастеру', `master_${masterId}`)]);
+
+  await ctx.reply(message, { attachments: [Keyboard.inlineKeyboard(buttons)] });
+}
+
+// Показать выбор времени начала перерыва
+async function showBreakStartTime(ctx, masterId, date) {
+  const master = getMasterById(masterId);
+  if (!master) {
+    await ctx.reply('❌ Мастер не найден');
+    return;
+  }
+
+  const range = getWorkingHoursRange();
+  const minHour = parseInt(range.minStart.split(':')[0]);
+  const maxHour = parseInt(range.maxEnd.split(':')[0]);
+
+  const displayDate = new Date(date).toLocaleDateString('ru-RU', {
+    day: 'numeric',
+    month: 'long',
+    weekday: 'long',
+  });
+  const message = `🕐 *Перерыв: ${master.name}*\n📅 ${displayDate}\n\nС которого часа начать перерыв?`;
+
+  const buttons = [];
+  let row = [];
+  for (let hour = minHour; hour < maxHour; hour++) {
+    const timeStr = `${hour.toString().padStart(2, '0')}:00`;
+    row.push(
+      Keyboard.button.callback(timeStr, `master_break_start_${masterId}_${date}_${timeStr}`)
+    );
+    if (row.length === 4) {
+      buttons.push(row);
+      row = [];
+    }
+  }
+  if (row.length > 0) buttons.push(row);
+
+  buttons.push([Keyboard.button.callback('⬅️ Назад', `master_breaks_${masterId}`)]);
+
+  await ctx.reply(message, { attachments: [Keyboard.inlineKeyboard(buttons)] });
+}
+
+// Показать выбор времени окончания перерыва
+async function showBreakEndTime(ctx, masterId, date, startTime) {
+  const master = getMasterById(masterId);
+  if (!master) {
+    await ctx.reply('❌ Мастер не найден');
+    return;
+  }
+
+  const range = getWorkingHoursRange();
+  const startHour = parseInt(startTime.split(':')[0]);
+  const maxHour = parseInt(range.maxEnd.split(':')[0]);
+
+  const displayDate = new Date(date).toLocaleDateString('ru-RU', {
+    day: 'numeric',
+    month: 'long',
+    weekday: 'long',
+  });
+  const message = `🕐 *Перерыв: ${master.name}*\n📅 ${displayDate}\n🕐 Начало: ${startTime}\n\nПо который час?`;
+
+  const buttons = [];
+  let row = [];
+  for (let hour = startHour + 1; hour <= maxHour; hour++) {
+    const timeStr = `${hour.toString().padStart(2, '0')}:00`;
+    row.push(
+      Keyboard.button.callback(
+        timeStr,
+        `master_break_save_${masterId}_${date}_${startTime}_${timeStr}`
+      )
+    );
+    if (row.length === 4) {
+      buttons.push(row);
+      row = [];
+    }
+  }
+  if (row.length > 0) buttons.push(row);
+
+  buttons.push([Keyboard.button.callback('⬅️ Назад', `master_break_day_${masterId}_${date}`)]);
+
+  await ctx.reply(message, { attachments: [Keyboard.inlineKeyboard(buttons)] });
+}
+
+// Сохранить перерыв
+async function saveMasterBreak(ctx, userId, masterId, date, startTime, endTime) {
+  const master = getMasterById(masterId);
+  if (!master) {
+    await ctx.reply('❌ Мастер не найден');
+    return;
+  }
+
+  const breakId = addMasterBreak(masterId, date, startTime, endTime);
+  if (breakId) {
+    const displayDate = new Date(date).toLocaleDateString('ru-RU', {
+      day: 'numeric',
+      month: 'long',
+    });
+    await ctx.reply(`✅ Перерыв добавлен: *${displayDate}*, ${startTime} — ${endTime}`);
+    await showMasterBreaks(ctx, masterId);
+  } else {
+    await ctx.reply('❌ Не удалось добавить перерыв. Возможно, он уже существует.');
+    await showMasterBreaks(ctx, masterId);
+  }
+}
+
+// Удалить перерыв
+async function deleteMasterBreak(ctx, userId, breakId) {
+  const breakItem = getMasterBreakById(breakId);
+  if (!breakItem) {
+    await ctx.reply('❌ Перерыв не найден');
+    return;
+  }
+
+  const masterId = breakItem.master_id;
+  removeMasterBreak(breakId);
+
+  await ctx.reply('✅ Перерыв удален');
+  await showMasterBreaks(ctx, masterId);
+}
 module.exports = {
   showMastersList,
   showMasterDetails,
@@ -160,4 +376,9 @@ module.exports = {
   startAddMaster,
   showMasterServices,
   handleMasterServiceToggle,
+  showMasterBreaks, // 🆕
+  showBreakStartTime, // 🆕
+  showBreakEndTime, // 🆕
+  saveMasterBreak, // 🆕
+  deleteMasterBreak, // 🆕
 };
