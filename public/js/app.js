@@ -1,208 +1,300 @@
-// Глобальные переменные состояния
+// Глобальное состояние
 let state = {
-  masterId: null,
-  masterName: '',
-  serviceId: null,
-  serviceName: '',
-  date: null,
-  time: null,
+  master_id: null,
+  service_id: null,
+  booking_date: null,
+  booking_time: null,
 };
 
-// При загрузке страницы сразу показываем мастеров
-document.addEventListener('DOMContentLoaded', () => {
-  loadMasters();
-
-  // Устанавливаем минимальную дату как "сегодня"
-  const dateInput = document.getElementById('booking-date');
-  if (dateInput) {
-    const today = new Date().toISOString().split('T')[0];
-    dateInput.min = today;
-    dateInput.value = today;
-    dateInput.addEventListener('change', (e) => {
-      state.date = e.target.value;
-      loadTimeSlots();
-    });
-  }
+// Инициализация
+document.addEventListener('DOMContentLoaded', async () => {
+  await loadMasters();
 });
 
-// Переключение шагов
-function showStep(stepId) {
+// Навигация
+function showStep(step) {
   document.querySelectorAll('.step').forEach((el) => el.classList.remove('active'));
-  document.getElementById(stepId).classList.add('active');
+  document.getElementById(`step-${step}`).classList.add('active');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-// 1. Загрузка мастеров
+function backToMaster() {
+  state.master_id = null;
+  showStep('master');
+}
+function backToService() {
+  state.service_id = null;
+  showStep('service');
+}
+function backToDate() {
+  state.booking_date = null;
+  showStep('date');
+}
+function backToTime() {
+  state.booking_time = null;
+  showStep('time');
+}
+
+// 1. Загрузка мастеров с умной подгрузкой фото
 async function loadMasters() {
-  const container = document.getElementById('masters-list');
-  container.innerHTML = '<div class="loader">Загрузка...</div>';
-
   try {
-    const res = await fetch('/api/masters');
-    const { success, data } = await res.json();
+    const response = await fetch('/api/masters');
+    const { success, data } = await response.json();
 
     if (success && data.length > 0) {
+      const container = document.getElementById('masters-list');
+      container.innerHTML = data
+        .map((master) => {
+          // 🆕 Умная логика фото:
+          // 1. Берем из базы (photo_url)
+          // 2. Если нет, ищем файл /images/masters/{id}.jpg
+          // 3. Если и его нет, сработает onerror и поставит заглушку
+          const photoSrc = master.photo_url || `/images/masters/${master.id}.jpg`;
+
+          return `
+            <div class="card" onclick="selectMaster(${master.id})">
+              <img src="${photoSrc}" 
+                   alt="${master.name}" 
+                   onerror="this.onerror=null; this.src='https://via.placeholder.com/56/e8eaed/5f6368?text=👤';">
+              <div>
+                <h3>💇 ${master.name}</h3>
+                <p>${master.specialty || 'Мастер'}</p>
+              </div>
+            </div>
+          `;
+        })
+        .join('');
+      showStep('master');
+    } else {
+      document.getElementById('masters-list').innerHTML =
+        '<p style="text-align:center; color: #5f6368;">Сейчас нет свободных мастеров.</p>';
+    }
+  } catch (error) {
+    console.error('Ошибка загрузки мастеров:', error);
+  }
+}
+
+// Выбор мастера
+function selectMaster(masterId) {
+  state.master_id = masterId;
+  loadServices(masterId);
+}
+
+// 2. Загрузка услуг
+async function loadServices(masterId) {
+  try {
+    const response = await fetch(`/api/masters/${masterId}/services`);
+    const { success, data } = await response.json();
+
+    if (success && data.length > 0) {
+      const container = document.getElementById('services-list');
       container.innerHTML = data
         .map(
-          (m) => `
-        <div class="card" onclick="selectMaster(${m.id}, '${m.name.replace(/'/g, "\\'")}')">
-          <img src="${m.photo_url || 'https://via.placeholder.com/50'}" alt="${m.name}" />
-          <div class="card-info">
-            <h3>${m.name}</h3>
-            <p>${m.specialty || 'Мастер'}</p>
+          (service) => `
+          <div class="list-item" onclick="selectService(${service.id})">
+            <div>
+              <h3>💈 ${service.name}</h3>
+              <p>⏱️ ${service.duration_minutes} мин</p>
+            </div>
+            <div class="price">${service.price} ₽</div>
           </div>
-        </div>
-      `
+        `
         )
         .join('');
+      showStep('service');
     } else {
-      container.innerHTML =
-        '<p style="text-align:center; color:#666;">К сожалению, сейчас нет свободных мастеров.</p>';
+      document.getElementById('services-list').innerHTML =
+        '<p style="text-align:center; color: #5f6368;">У этого мастера пока нет услуг.</p>';
     }
-  } catch (err) {
-    container.innerHTML =
-      '<p style="text-align:center; color:red;">Ошибка загрузки. Обновите страницу.</p>';
+  } catch (error) {
+    console.error('Ошибка загрузки услуг:', error);
   }
 }
 
-// 2. Выбор мастера и загрузка услуг
-async function selectMaster(masterId, masterName) {
-  state.masterId = masterId;
-  state.masterName = masterName;
+// Выбор услуги
+function selectService(serviceId) {
+  state.service_id = serviceId;
+  loadDates();
+}
 
-  showStep('step-service');
-  const container = document.getElementById('services-list');
-  container.innerHTML = '<div class="loader">Загрузка...</div>';
+// 3. Загрузка дат
+function loadDates() {
+  const container = document.getElementById('dates-list');
+  const dates = [];
 
+  for (let i = 0; i < 10; i++) {
+    const date = new Date();
+    date.setDate(date.getDate() + i);
+    dates.push(date);
+  }
+
+  container.innerHTML = dates
+    .map((date) => {
+      const dateStr = date.toISOString().split('T')[0];
+      const displayDate = date.toLocaleDateString('ru-RU', {
+        day: 'numeric',
+        month: 'long',
+        weekday: 'short',
+      });
+
+      return `<div class="date-item" onclick="selectDate('${dateStr}')">${displayDate}</div>`;
+    })
+    .join('');
+
+  showStep('date');
+}
+
+// Выбор даты
+function selectDate(dateStr) {
+  state.booking_date = dateStr;
+  loadTimeSlots(dateStr);
+}
+
+// 4. Загрузка слотов времени
+async function loadTimeSlots(date) {
   try {
-    const res = await fetch(`/api/masters/${masterId}/services`);
-    const { success, data } = await res.json();
+    const response = await fetch(`/api/free-slots/${state.master_id}/${state.service_id}/${date}`);
+    const { success, data } = await response.json();
 
     if (success && data.length > 0) {
+      const container = document.getElementById('times-list');
       container.innerHTML = data
-        .map(
-          (s) => `
-        <div class="card" onclick="selectService(${s.id}, '${s.name.replace(/'/g, "\\'")}')">
-          <div class="card-info" style="flex:1;">
-            <h3>${s.name}</h3>
-            <p>${s.duration_minutes} мин</p>
-          </div>
-          <div style="font-weight:bold; color:var(--accent);">${s.price} ₽</div>
-        </div>
-      `
-        )
+        .map((time) => `<div class="time-item" onclick="selectTime('${time}')">${time}</div>`)
         .join('');
+      showStep('time');
     } else {
-      container.innerHTML =
-        '<p style="text-align:center; color:#666;">У этого мастера пока нет услуг.</p>';
+      document.getElementById('times-list').innerHTML =
+        '<p style="grid-column: 1/-1; text-align:center; color: #5f6368;">Нет свободных окон на эту дату.</p>';
     }
-  } catch (err) {
-    container.innerHTML = '<p style="text-align:center; color:red;">Ошибка загрузки услуг.</p>';
+  } catch (error) {
+    console.error('Ошибка загрузки времени:', error);
   }
 }
 
-// 3. Выбор услуги и переход к дате
-function selectService(serviceId, serviceName) {
-  state.serviceId = serviceId;
-  state.serviceName = serviceName;
-  showStep('step-datetime');
-
-  // Триггерим загрузку слотов для текущей даты
-  if (state.date) loadTimeSlots();
-}
-
-// 4. Загрузка временных слотов
-async function loadTimeSlots() {
-  const container = document.getElementById('time-slots');
-  container.innerHTML =
-    '<div class="loader" style="grid-column: 1/-1;">Поиск свободных окон...</div>';
-
-  try {
-    const res = await fetch(`/api/free-slots/${state.masterId}/${state.serviceId}/${state.date}`);
-    const { success, data } = await res.json();
-
-    if (success && data.length > 0) {
-      container.innerHTML = data
-        .map(
-          (time) => `
-        <button class="btn" style="margin:0; padding:10px; font-size:14px;" onclick="selectTime('${time}')">${time}</button>
-      `
-        )
-        .join('');
-    } else {
-      container.innerHTML =
-        '<p style="grid-column: 1/-1; text-align:center; color:#666;">Нет свободных окон на эту дату.</p>';
-    }
-  } catch (err) {
-    container.innerHTML =
-      '<p style="grid-column: 1/-1; text-align:center; color:red;">Ошибка загрузки расписания.</p>';
-  }
-}
-
-// 5. Выбор времени и переход к форме
+// Выбор времени
 function selectTime(time) {
-  state.time = time;
-
-  // Заполняем саммари
-  const dateObj = new Date(state.date);
-  const formattedDate = dateObj.toLocaleDateString('ru-RU', {
-    day: 'numeric',
-    month: 'long',
-    weekday: 'long',
-  });
-
-  document.getElementById('booking-summary').innerHTML = `
-    <p>💇 <strong>Мастер:</strong> ${state.masterName}</p>
-    <p>💈 <strong>Услуга:</strong> ${state.serviceName}</p>
-    <p>📅 <strong>Дата:</strong> ${formattedDate}</p>
-    <p>🕐 <strong>Время:</strong> ${state.time}</p>
-  `;
-
-  showStep('step-client');
+  state.booking_time = time;
+  showStep('form');
 }
 
-// 6. Отправка записи
-async function submitBooking() {
-  const name = document.getElementById('client-name').value.trim();
-  const phone = document.getElementById('client-phone').value.trim();
-  const btn = document.getElementById('submit-btn');
+// ========== ВАЛИДАЦИЯ ТЕЛЕФОНА И МАСКА ==========
 
-  if (!name || name.length < 2) {
-    alert('Пожалуйста, введите корректное имя');
-    return;
+function formatPhone(value) {
+  const digits = value.replace(/\D/g, '');
+  let normalized = digits;
+  if (digits.startsWith('8') && digits.length > 1) {
+    normalized = '7' + digits.slice(1);
   }
-  if (!phone || phone.replace(/\D/g, '').length < 10) {
-    alert('Пожалуйста, введите корректный номер телефона');
-    return;
+  if (!normalized.startsWith('7') && normalized.length > 0) {
+    normalized = '7' + normalized;
   }
 
-  btn.disabled = true;
-  btn.textContent = 'Отправка...';
+  let formatted = '+7';
+  if (normalized.length > 1) formatted += ' (' + normalized.slice(1, 4);
+  if (normalized.length >= 5) formatted += ') ' + normalized.slice(4, 7);
+  if (normalized.length >= 8) formatted += '-' + normalized.slice(7, 9);
+  if (normalized.length >= 10) formatted += '-' + normalized.slice(9, 11);
+
+  return formatted;
+}
+
+function validatePhone(phone) {
+  const digits = phone.replace(/\D/g, '');
+  if (digits.length !== 11) return { valid: false, error: 'Телефон должен содержать 11 цифр' };
+  if (!digits.startsWith('7')) return { valid: false, error: 'Телефон должен начинаться с +7' };
+  return { valid: true, digits: '+' + digits };
+}
+
+document.getElementById('client-phone').addEventListener('input', function (e) {
+  const cursorPosition = e.target.selectionStart;
+  const oldValue = e.target.value;
+  const newValue = formatPhone(oldValue);
+
+  e.target.value = newValue;
+  const diff = newValue.length - oldValue.length;
+  e.target.setSelectionRange(cursorPosition + diff, cursorPosition + diff);
+  document.getElementById('phone-error').style.display = 'none';
+});
+
+document.getElementById('privacy-agreed').addEventListener('change', function () {
+  document.getElementById('privacy-error').style.display = 'none';
+});
+
+// ========== ОТПРАВКА ФОРМЫ ==========
+
+document.getElementById('booking-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+
+  const client_name = document.getElementById('client-name').value.trim();
+  const client_phone = document.getElementById('client-phone').value;
+  const privacyAgreed = document.getElementById('privacy-agreed').checked;
+  const privacyError = document.getElementById('privacy-error');
+  const submitBtn = document.getElementById('submit-btn');
+
+  if (!privacyAgreed) {
+    privacyError.textContent = '❌ Необходимо согласиться с политикой конфиденциальности';
+    privacyError.style.display = 'block';
+    return;
+  }
+
+  if (client_name.length < 2) {
+    alert('Пожалуйста, введите ваше имя (минимум 2 символа)');
+    return;
+  }
+
+  const phoneValidation = validatePhone(client_phone);
+  if (!phoneValidation.valid) {
+    const errorElement = document.getElementById('phone-error');
+    errorElement.textContent = '❌ ' + phoneValidation.error;
+    errorElement.style.display = 'block';
+    document.getElementById('client-phone').focus();
+    return;
+  }
+
+  const formattedPhone = phoneValidation.digits;
+
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'Отправка...';
 
   try {
-    const res = await fetch('/api/bookings', {
+    const response = await fetch('/api/bookings', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        client_name: name,
-        client_phone: phone,
-        master_id: state.masterId,
-        service_id: state.serviceId,
-        booking_date: state.date,
-        booking_time: state.time,
+        client_name,
+        client_phone: formattedPhone,
+        master_id: state.master_id,
+        service_id: state.service_id,
+        booking_date: state.booking_date,
+        booking_time: state.booking_time,
       }),
     });
 
-    const result = await res.json();
-    if (result.success) {
-      showStep('step-success');
+    const { success, error } = await response.json();
+
+    if (success) {
+      const date = new Date(state.booking_date);
+      const displayDate = date.toLocaleDateString('ru-RU', {
+        day: 'numeric',
+        month: 'long',
+        weekday: 'long',
+      });
+
+      document.getElementById('booking-details').innerHTML = `
+        <p><strong>📅 ${displayDate}</strong></p>
+        <p><strong>🕐 ${state.booking_time}</strong></p>
+        <p>Мы ждём вас!</p>
+      `;
+      showStep('success');
     } else {
-      alert('Ошибка: ' + (result.error || 'Не удалось создать запись'));
-      btn.disabled = false;
-      btn.textContent = '✅ Подтвердить запись';
+      alert('Ошибка: ' + (error || 'Не удалось создать запись'));
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Записаться';
     }
-  } catch (err) {
-    alert('Ошибка сети. Попробуйте позже.');
-    btn.disabled = false;
-    btn.textContent = '✅ Подтвердить запись';
+  } catch (error) {
+    console.error('Ошибка создания записи:', error);
+    alert('Произошла ошибка сети. Попробуйте ещё раз.');
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Записаться';
   }
-}
+});
