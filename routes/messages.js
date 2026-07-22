@@ -27,24 +27,74 @@ async function handleMessage(ctx, text, userId, { userStates }) {
       return;
     }
     if (state.mode === 'admin_add_master_experience') {
-      const experience = parseInt(text) || 0;
+      console.log(`✅ [DEBUG] Сработал режим admin_add_master_experience! Сохраняем: "${text}"`);
+      state.temp_experience = parseInt(text) || 0;
+      state.mode = 'admin_add_master_photo';
+      userStates.set(userId, state);
+
+      await ctx.reply(
+        '🖼️ *Введите ссылку на фото мастера*\n\n' +
+          'Например: https://example.com/photo.jpg\n\n' +
+          'Если фото пока нет, просто напишите: *нет*',
+        {
+          attachments: [
+            Keyboard.inlineKeyboard([[Keyboard.button.callback('❌ Отмена', 'admin_masters')]]),
+          ],
+        }
+      );
+      return;
+    }
+
+    if (state.mode === 'admin_add_master_photo') {
+      console.log(`✅ [DEBUG] Сработал режим admin_add_master_photo! Получено: "${text}"`);
+
+      let photoUrl = null;
+      const lowerText = text.trim().toLowerCase();
+
+      if (lowerText !== 'нет' && lowerText !== 'пропустить') {
+        // Простая валидация URL
+        if (text.startsWith('http://') || text.startsWith('https://')) {
+          photoUrl = text.trim();
+        } else {
+          await ctx.reply(
+            '❌ Ссылка должна начинаться с http:// или https://\n\n' +
+              'Попробуйте ещё раз или напишите *нет*, чтобы пропустить:',
+            {
+              attachments: [
+                Keyboard.inlineKeyboard([[Keyboard.button.callback('❌ Отмена', 'admin_masters')]]),
+              ],
+            }
+          );
+          return; // Прерываем, чтобы админ попробовал снова
+        }
+      }
+
+      // Создаём мастера с фото
       const { createMaster } = require('../database/database');
       const newMasterId = createMaster(
         state.temp_name || 'Без имени',
         state.temp_specialty || 'Специалист',
-        experience,
-        '',
-        null
+        state.temp_experience || 0,
+        '', // description пока оставляем пустым
+        photoUrl
       );
-      console.log(`✅ [DEBUG] Мастер создан с ID: ${newMasterId}`);
+      console.log(`✅ [DEBUG] Мастер создан с ID: ${newMasterId}, фото: ${photoUrl || 'нет'}`);
+
       userStates.delete(userId);
-      await ctx.reply(`✅ Мастер *${state.temp_name}* успешно добавлен!`, {
-        attachments: [
-          Keyboard.inlineKeyboard([
-            [Keyboard.button.callback('⬅️ К списку мастеров', 'admin_masters')],
-          ]),
-        ],
-      });
+
+      await ctx.reply(
+        `✅ Мастер *${state.temp_name}* успешно добавлен!` +
+          (photoUrl
+            ? `\n🖼️ Фото установлено.`
+            : `\n⚠️ Фото не установлено (можно добавить позже).`),
+        {
+          attachments: [
+            Keyboard.inlineKeyboard([
+              [Keyboard.button.callback('⬅️ К списку мастеров', 'admin_masters')],
+            ]),
+          ],
+        }
+      );
       return;
     }
 
