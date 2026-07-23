@@ -1,5 +1,3 @@
-// Устанавливаем часовой пояс Екатеринбурга
-process.env.TZ = 'Asia/Yekaterinburg';
 const express = require('express');
 const cors = require('cors');
 const path = require('path');

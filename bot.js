@@ -1,5 +1,3 @@
-// Устанавливаем часовой пояс Екатеринбурга
-process.env.TZ = 'Asia/Yekaterinburg';
 // ========== ПОДКЛЮЧЕНИЕ БИБЛИОТЕК ==========
 require('dotenv').config();
 const { Bot, Keyboard } = require('@maxhub/max-bot-api');
