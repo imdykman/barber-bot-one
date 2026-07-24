@@ -192,10 +192,16 @@ async function handleMessage(ctx, text, userId, { userStates }) {
 
       await ctx.reply(
         `💇 Текущая специализация: *${state.temp_specialty || 'не указана'}*\n\n` +
-          `Введите новую специализацию (или оставьте как есть):`,
+          `Введите новую специализацию или нажмите "Оставить текущее":`,
         {
           attachments: [
             Keyboard.inlineKeyboard([
+              [
+                Keyboard.button.callback(
+                  '✅ Оставить текущее',
+                  `edit_master_skip_specialty_${state.editing_master_id}`
+                ),
+              ],
               [Keyboard.button.callback('❌ Отмена', `master_${state.editing_master_id}`)],
             ]),
           ],
@@ -212,10 +218,16 @@ async function handleMessage(ctx, text, userId, { userStates }) {
 
       await ctx.reply(
         `📅 Текущий опыт: *${state.temp_experience} лет*\n\n` +
-          `Введите новый опыт в годах (число):`,
+          `Введите новый опыт в годах (число) или нажмите "Оставить текущее":`,
         {
           attachments: [
             Keyboard.inlineKeyboard([
+              [
+                Keyboard.button.callback(
+                  '✅ Оставить текущее',
+                  `edit_master_skip_experience_${state.editing_master_id}`
+                ),
+              ],
               [Keyboard.button.callback('❌ Отмена', `master_${state.editing_master_id}`)],
             ]),
           ],
@@ -232,10 +244,16 @@ async function handleMessage(ctx, text, userId, { userStates }) {
 
       await ctx.reply(
         `🖼️ Текущее фото: ${state.temp_photo_url ? `[ссылка](${state.temp_photo_url})` : 'не установлено'}\n\n` +
-          `Введите новую ссылку на фото (или напишите *нет*, чтобы оставить как есть):`,
+          `Введите новую ссылку на фото или нажмите "Оставить текущее":`,
         {
           attachments: [
             Keyboard.inlineKeyboard([
+              [
+                Keyboard.button.callback(
+                  '✅ Оставить текущее',
+                  `edit_master_skip_photo_${state.editing_master_id}`
+                ),
+              ],
               [Keyboard.button.callback('❌ Отмена', `master_${state.editing_master_id}`)],
             ]),
           ],
@@ -257,10 +275,16 @@ async function handleMessage(ctx, text, userId, { userStates }) {
         } else {
           await ctx.reply(
             '❌ Ссылка должна начинаться с http:// или https://\n\n' +
-              'Попробуйте ещё раз или напишите *нет*, чтобы оставить старое фото:',
+              'Попробуйте ещё раз или нажмите "Оставить текущее":',
             {
               attachments: [
                 Keyboard.inlineKeyboard([
+                  [
+                    Keyboard.button.callback(
+                      '✅ Оставить текущее',
+                      `edit_master_skip_photo_${state.editing_master_id}`
+                    ),
+                  ],
                   [Keyboard.button.callback('❌ Отмена', `master_${state.editing_master_id}`)],
                 ]),
               ],

@@ -480,6 +480,133 @@ async function handleCallback(ctx, data, userId, { userStates }) {
     return true;
   }
   // ========== РЕДАКТИРОВАНИЕ МАСТЕРА ==========
+
+  // 🆕 ВАЖНО: Этот блок должен быть ПЕРЕД edit_master_,
+  // потому что edit_master_skip_ тоже начинается с edit_master_
+  if (data.startsWith('edit_master_skip_')) {
+    if (!checkAccess(ctx, userId)) return true;
+
+    // Формат: edit_master_skip_name_2, edit_master_skip_specialty_2, и т.д.
+    const parts = data.replace('edit_master_skip_', '').split('_');
+    const field = parts[0]; // name, specialty, experience, photo
+    const masterId = parseInt(parts[1]);
+
+    console.log(`✏️ Админ: пропуск поля ${field} для мастера ${masterId}`);
+
+    const { userStates } = require('../services/states');
+    const state = userStates.get(userId);
+
+    if (!state || !state.editing_master_id) {
+      await ctx.reply('❌ Сессия редактирования истекла. Начните заново.');
+      return true;
+    }
+
+    const { getMasterById, updateMaster } = require('../database/database');
+    const master = getMasterById(masterId);
+
+    if (!master) {
+      await ctx.reply('❌ Мастер не найден');
+      return true;
+    }
+
+    // В зависимости от поля, переходим к следующему шагу
+    if (field === 'name') {
+      state.temp_name = master.name;
+      state.mode = 'admin_edit_master_specialty';
+      userStates.set(userId, state);
+
+      await ctx.reply(
+        `💇 Текущая специализация: *${state.temp_specialty || 'не указана'}*\n\n` +
+          `Введите новую специализацию или нажмите "Оставить текущее":`,
+        {
+          attachments: [
+            Keyboard.inlineKeyboard([
+              [
+                Keyboard.button.callback(
+                  '✅ Оставить текущее',
+                  `edit_master_skip_specialty_${masterId}`
+                ),
+              ],
+              [Keyboard.button.callback('❌ Отмена', `master_${masterId}`)],
+            ]),
+          ],
+        }
+      );
+    } else if (field === 'specialty') {
+      state.temp_specialty = master.specialty || '';
+      state.mode = 'admin_edit_master_experience';
+      userStates.set(userId, state);
+
+      await ctx.reply(
+        `📅 Текущий опыт: *${state.temp_experience} лет*\n\n` +
+          `Введите новый опыт в годах (число) или нажмите "Оставить текущее":`,
+        {
+          attachments: [
+            Keyboard.inlineKeyboard([
+              [
+                Keyboard.button.callback(
+                  '✅ Оставить текущее',
+                  `edit_master_skip_experience_${masterId}`
+                ),
+              ],
+              [Keyboard.button.callback('❌ Отмена', `master_${masterId}`)],
+            ]),
+          ],
+        }
+      );
+    } else if (field === 'experience') {
+      state.temp_experience = master.experience || 0;
+      state.mode = 'admin_edit_master_photo';
+      userStates.set(userId, state);
+
+      await ctx.reply(
+        `🖼️ Текущее фото: ${state.temp_photo_url ? `[ссылка](${state.temp_photo_url})` : 'не установлено'}\n\n` +
+          `Введите новую ссылку на фото или нажмите "Оставить текущее":`,
+        {
+          attachments: [
+            Keyboard.inlineKeyboard([
+              [
+                Keyboard.button.callback(
+                  '✅ Оставить текущее',
+                  `edit_master_skip_photo_${masterId}`
+                ),
+              ],
+              [Keyboard.button.callback('❌ Отмена', `master_${masterId}`)],
+            ]),
+          ],
+        }
+      );
+    } else if (field === 'photo') {
+      state.temp_photo_url = master.photo_url || '';
+
+      const success = updateMaster(
+        masterId,
+        state.temp_name,
+        state.temp_specialty,
+        state.temp_experience,
+        state.temp_description || '',
+        state.temp_photo_url
+      );
+
+      userStates.delete(userId);
+
+      if (success) {
+        await ctx.reply(`✅ Мастер *${state.temp_name}* успешно обновлен!`, {
+          attachments: [
+            Keyboard.inlineKeyboard([
+              [Keyboard.button.callback('⬅️ К мастеру', `master_${masterId}`)],
+            ]),
+          ],
+        });
+      } else {
+        await ctx.reply('❌ Ошибка обновления мастера.');
+      }
+    }
+
+    return true;
+  }
+
+  // Этот блок теперь ВТОРЫМ (после более специфичного edit_master_skip_)
   if (data.startsWith('edit_master_')) {
     if (!checkAccess(ctx, userId)) return true;
     const masterId = parseInt(data.replace('edit_master_', ''));
@@ -488,6 +615,7 @@ async function handleCallback(ctx, data, userId, { userStates }) {
     await startEditMaster(ctx, userId, masterId);
     return true;
   }
+
   // ========== ПРИВЯЗКА УСЛУГ К МАСТЕРУ ==========
   if (data.startsWith('master_services_')) {
     if (!checkAccess(ctx, userId)) return true;

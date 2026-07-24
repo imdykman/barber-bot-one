@@ -396,10 +396,13 @@ async function startEditMaster(ctx, userId, masterId) {
   await ctx.reply(
     `✏️ *Редактирование мастера*\n\n` +
       `Текущее имя: *${master.name}*\n\n` +
-      `Введите новое имя (или оставьте как есть):`,
+      `Введите новое имя или нажмите "Оставить текущее":`,
     {
       attachments: [
-        Keyboard.inlineKeyboard([[Keyboard.button.callback('❌ Отмена', `master_${masterId}`)]]),
+        Keyboard.inlineKeyboard([
+          [Keyboard.button.callback('✅ Оставить текущее', `edit_master_skip_name_${masterId}`)],
+          [Keyboard.button.callback('❌ Отмена', `master_${masterId}`)],
+        ]),
       ],
     }
   );
