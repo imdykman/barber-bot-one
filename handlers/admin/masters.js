@@ -57,6 +57,7 @@ async function showMasterDetails(ctx, masterId) {
   const keyboard = Keyboard.inlineKeyboard([
     [Keyboard.button.callback('🔗 Услуги мастера', `master_services_${masterId}`)],
     [Keyboard.button.callback('⏸️ Индивидуальные перерывы', `master_breaks_${masterId}`)],
+    [Keyboard.button.callback('✏️ Редактировать', `edit_master_${masterId}`)], // 🆕
     [
       Keyboard.button.callback(
         master.is_active ? '🚫 Деактивировать' : '✅ Активировать',
@@ -369,6 +370,40 @@ async function deleteMasterBreak(ctx, userId, breakId) {
   await ctx.reply('✅ Перерыв удален');
   await showMasterBreaks(ctx, masterId);
 }
+// ========== РЕДАКТИРОВАНИЕ МАСТЕРА ==========
+
+// Начать редактирование мастера
+async function startEditMaster(ctx, userId, masterId) {
+  const master = getMasterById(masterId);
+  if (!master) {
+    await ctx.reply('❌ Мастер не найден');
+    return;
+  }
+
+  const { userStates } = require('../../services/states');
+
+  // Сохраняем текущие данные мастера в состояние
+  userStates.set(userId, {
+    mode: 'admin_edit_master_name',
+    editing_master_id: masterId,
+    temp_name: master.name,
+    temp_specialty: master.specialty || '',
+    temp_experience: master.experience || 0,
+    temp_description: master.description || '',
+    temp_photo_url: master.photo_url || '',
+  });
+
+  await ctx.reply(
+    `✏️ *Редактирование мастера*\n\n` +
+      `Текущее имя: *${master.name}*\n\n` +
+      `Введите новое имя (или оставьте как есть):`,
+    {
+      attachments: [
+        Keyboard.inlineKeyboard([[Keyboard.button.callback('❌ Отмена', `master_${masterId}`)]]),
+      ],
+    }
+  );
+}
 module.exports = {
   showMastersList,
   showMasterDetails,
@@ -376,9 +411,10 @@ module.exports = {
   startAddMaster,
   showMasterServices,
   handleMasterServiceToggle,
-  showMasterBreaks, // 🆕
-  showBreakStartTime, // 🆕
-  showBreakEndTime, // 🆕
-  saveMasterBreak, // 🆕
-  deleteMasterBreak, // 🆕
+  showMasterBreaks,
+  showBreakStartTime,
+  showBreakEndTime,
+  saveMasterBreak,
+  deleteMasterBreak,
+  startEditMaster, // 🆕
 };

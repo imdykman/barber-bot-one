@@ -75,7 +75,8 @@ async function handleCallback(ctx, data, userId, { userStates }) {
     !data.startsWith('admin_') &&
     !data.startsWith('master_') &&
     !data.startsWith('service_') &&
-    !data.startsWith('toggle_')
+    !data.startsWith('toggle_') &&
+    !data.startsWith('edit_master_') // 🆕 Добавлено для редактирования мастера
   ) {
     return false;
   }
@@ -476,6 +477,15 @@ async function handleCallback(ctx, data, userId, { userStates }) {
   // ========== УПРАВЛЕНИЕ МАСТЕРАМИ ==========
   if (data === 'admin_masters') {
     await showMastersList(ctx);
+    return true;
+  }
+  // ========== РЕДАКТИРОВАНИЕ МАСТЕРА ==========
+  if (data.startsWith('edit_master_')) {
+    if (!checkAccess(ctx, userId)) return true;
+    const masterId = parseInt(data.replace('edit_master_', ''));
+    console.log(`✏️ Админ: редактирование мастера ${masterId}`);
+    const { startEditMaster } = require('../handlers/admin/masters');
+    await startEditMaster(ctx, userId, masterId);
     return true;
   }
   // ========== ПРИВЯЗКА УСЛУГ К МАСТЕРУ ==========

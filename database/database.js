@@ -861,6 +861,21 @@ function getMasterBreakById(breakId) {
     )
     .get(breakId);
 }
+// ========== ОБНОВЛЕНИЕ МАСТЕРА ==========
+
+// Обновить данные мастера
+function updateMaster(masterId, name, specialty, experience, description, photoUrl) {
+  const result = db
+    .prepare(
+      `
+    UPDATE masters 
+    SET name = ?, specialty = ?, experience = ?, description = ?, photo_url = ?
+    WHERE id = ?
+  `
+    )
+    .run(name, specialty, experience, description, photoUrl, masterId);
+  return result.changes > 0;
+}
 // ========== ЭКСПОРТ ==========
 module.exports = {
   db,
@@ -915,4 +930,5 @@ module.exports = {
   addMasterBreak,
   removeMasterBreak,
   getMasterBreakById,
+  updateMaster,
 };

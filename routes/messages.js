@@ -182,6 +182,120 @@ async function handleMessage(ctx, text, userId, { userStates }) {
       await showAllBookings(ctx, userId, { search: text });
       return;
     }
+    // ========== РЕДАКТИРОВАНИЕ МАСТЕРА ==========
+
+    if (state.mode === 'admin_edit_master_name') {
+      console.log(`✅ [DEBUG] Редактирование: новое имя "${text}"`);
+      state.temp_name = text.trim();
+      state.mode = 'admin_edit_master_specialty';
+      userStates.set(userId, state);
+
+      await ctx.reply(
+        `💇 Текущая специализация: *${state.temp_specialty || 'не указана'}*\n\n` +
+          `Введите новую специализацию (или оставьте как есть):`,
+        {
+          attachments: [
+            Keyboard.inlineKeyboard([
+              [Keyboard.button.callback('❌ Отмена', `master_${state.editing_master_id}`)],
+            ]),
+          ],
+        }
+      );
+      return;
+    }
+
+    if (state.mode === 'admin_edit_master_specialty') {
+      console.log(`✅ [DEBUG] Редактирование: новая специализация "${text}"`);
+      state.temp_specialty = text.trim();
+      state.mode = 'admin_edit_master_experience';
+      userStates.set(userId, state);
+
+      await ctx.reply(
+        `📅 Текущий опыт: *${state.temp_experience} лет*\n\n` +
+          `Введите новый опыт в годах (число):`,
+        {
+          attachments: [
+            Keyboard.inlineKeyboard([
+              [Keyboard.button.callback('❌ Отмена', `master_${state.editing_master_id}`)],
+            ]),
+          ],
+        }
+      );
+      return;
+    }
+
+    if (state.mode === 'admin_edit_master_experience') {
+      console.log(`✅ [DEBUG] Редактирование: новый опыт "${text}"`);
+      state.temp_experience = parseInt(text) || 0;
+      state.mode = 'admin_edit_master_photo';
+      userStates.set(userId, state);
+
+      await ctx.reply(
+        `🖼️ Текущее фото: ${state.temp_photo_url ? `[ссылка](${state.temp_photo_url})` : 'не установлено'}\n\n` +
+          `Введите новую ссылку на фото (или напишите *нет*, чтобы оставить как есть):`,
+        {
+          attachments: [
+            Keyboard.inlineKeyboard([
+              [Keyboard.button.callback('❌ Отмена', `master_${state.editing_master_id}`)],
+            ]),
+          ],
+        }
+      );
+      return;
+    }
+
+    if (state.mode === 'admin_edit_master_photo') {
+      console.log(`✅ [DEBUG] Редактирование: новое фото "${text}"`);
+
+      let photoUrl = state.temp_photo_url; // По умолчанию оставляем старое
+      const lowerText = text.trim().toLowerCase();
+
+      if (lowerText !== 'нет' && lowerText !== 'пропустить') {
+        // Валидация URL
+        if (text.startsWith('http://') || text.startsWith('https://')) {
+          photoUrl = text.trim();
+        } else {
+          await ctx.reply(
+            '❌ Ссылка должна начинаться с http:// или https://\n\n' +
+              'Попробуйте ещё раз или напишите *нет*, чтобы оставить старое фото:',
+            {
+              attachments: [
+                Keyboard.inlineKeyboard([
+                  [Keyboard.button.callback('❌ Отмена', `master_${state.editing_master_id}`)],
+                ]),
+              ],
+            }
+          );
+          return;
+        }
+      }
+
+      // Обновляем мастера в БД
+      const { updateMaster } = require('../database/database');
+      const success = updateMaster(
+        state.editing_master_id,
+        state.temp_name,
+        state.temp_specialty,
+        state.temp_experience,
+        state.temp_description,
+        photoUrl
+      );
+
+      userStates.delete(userId);
+
+      if (success) {
+        await ctx.reply(`✅ Мастер *${state.temp_name}* успешно обновлен!`, {
+          attachments: [
+            Keyboard.inlineKeyboard([
+              [Keyboard.button.callback('⬅️ К мастеру', `master_${state.editing_master_id}`)],
+            ]),
+          ],
+        });
+      } else {
+        await ctx.reply('❌ Ошибка обновления мастера.');
+      }
+      return;
+    }
   }
 
   // ========== 2. ОБРАБОТКА КОНТАКТА (КЛИЕНТ) ==========
